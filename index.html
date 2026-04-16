@@ -444,9 +444,9 @@ async function entrar(){
     if(error)throw error;
     var{data:perfil,error:ep}=await sb.from('usuarios').select('role').eq('id',data.user.id).single();
     if(ep||!perfil)throw new Error('Perfil não encontrado. Contate o administrador.');
-    if(perfil.role==='admin')window.location.href='admin.html';
-    else if(perfil.role==='produtor'||perfil.role==='gerente')window.location.href='dashboard.html';
-    else window.location.href='campo.html';
+    if(perfil.role==='admin')window.location.href=JA.urls.admin;
+    else if(perfil.role==='produtor'||perfil.role==='gerente')window.location.href=JA.urls.dashboard;
+    else window.location.href=JA.urls.campo;
   }catch(e){
     var msg=e.message||'Erro ao entrar.';
     if(msg.includes('Invalid login')||msg.includes('invalid_credentials'))msg='E-mail ou senha incorretos.';
@@ -462,7 +462,7 @@ async function recuperar(){
   btn.disabled=true;btn.innerHTML='<div class="spin"></div> Enviando...';
   document.getElementById('errBoxR').classList.remove('show');
   try{
-    var{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+'/reset-senha.html'});
+    var{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:JA.urls.resetSenha});
     if(error)throw error;
     document.getElementById('recoverOk').classList.add('show');
     btn.innerHTML='<span>Enviado ✓</span>';
@@ -491,9 +491,9 @@ function showLogin(){
     if(!session)return;
     var{data:perfil}=await sb.from('usuarios').select('role').eq('id',session.user.id).single();
     if(!perfil)return;
-    if(perfil.role==='admin')window.location.href='admin.html';
-    else if(perfil.role==='produtor'||perfil.role==='gerente')window.location.href='dashboard.html';
-    else window.location.href='campo.html';
+    if(perfil.role==='admin')window.location.href=JA.urls.admin;
+    else if(perfil.role==='produtor'||perfil.role==='gerente')window.location.href=JA.urls.dashboard;
+    else window.location.href=JA.urls.campo;
   }catch(e){}
 })();
 document.addEventListener('DOMContentLoaded',function(){document.getElementById('email').focus();});
