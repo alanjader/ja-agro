@@ -3,7 +3,8 @@
 // modules/admin-usuarios.js
 // ============================================================
 
-var EDGE_CRIAR_USUARIO = 'https://gohoqgctcqltorfeohom.supabase.co/functions/v1/criar-usuario';
+// URL vem do config.js
+var EDGE_CRIAR_USUARIO = JA.functions.criarUsuario;
 
 window.module_usuarios = async function() {
   setTopbar('Usuários', 'Gestão de acessos',
@@ -181,7 +182,7 @@ window.resetSenha=async function(email){
   var ok=await confirm2('Enviar reset de senha?','Um link será enviado para <strong>'+esc(email)+'</strong>.','🔑');
   if(!ok)return;
   try{
-    var{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://alanjader.github.io/ja-agro/reset-senha.html'});
+    var{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:JA.urls.resetSenha});
     if(error)throw error;
     toast('E-mail de reset enviado!','ok');
   }catch(e){toast('Erro: '+e.message,'bad');}
