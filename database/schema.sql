@@ -291,13 +291,13 @@ ALTER TABLE manutencoes           ENABLE ROW LEVEL SECURITY;
 -- Função auxiliar: retorna role do usuário logado
 CREATE OR REPLACE FUNCTION get_user_role()
 RETURNS TEXT AS $$
-  SELECT role FROM usuarios WHERE auth_id = auth.uid() LIMIT 1;
+  SELECT role FROM public.usuarios WHERE id = auth.uid() LIMIT 1;
 $$ LANGUAGE SQL SECURITY DEFINER STABLE;
 
 -- Função auxiliar: retorna fazenda_id do usuário logado
 CREATE OR REPLACE FUNCTION get_user_fazenda()
 RETURNS UUID AS $$
-  SELECT fazenda_id FROM usuarios WHERE auth_id = auth.uid() LIMIT 1;
+  SELECT fazenda_id FROM public.usuarios WHERE id = auth.uid() LIMIT 1;
 $$ LANGUAGE SQL SECURITY DEFINER STABLE;
 
 -- ── POLICIES: fazendas ──
@@ -313,6 +313,9 @@ CREATE POLICY "Apenas admin atualiza fazenda" ON fazendas
   FOR UPDATE USING (get_user_role() = 'admin');
 
 -- ── POLICIES: usuarios ──
+DROP POLICY IF EXISTS "Usuario ve proprio perfil" ON usuarios;
+CREATE POLICY "Usuario ve proprio perfil" ON usuarios
+  FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Admins veem todos usuarios" ON usuarios
   FOR SELECT USING (get_user_role() IN ('admin','gerente'));
 CREATE POLICY "Apenas admin gerencia usuarios" ON usuarios
