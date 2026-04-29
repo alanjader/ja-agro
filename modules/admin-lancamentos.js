@@ -7,9 +7,8 @@ window.module_lancamentos = async function() {
   const fmt = n => n != null ? Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '--';
   const fmtDate = d => d ? new Date(d+'T00:00:00').toLocaleDateString('pt-BR') : '--';
 
-  let _lancamentos = [], _fazendas = [], _safras = [], _talhoes = [], _insumos = [], _maquinas = [], _operadores = [];
-  let _search = '', _filtroFaz = '', _filtroTipo = '', _filtroSafra = '', _pagina = 1;
-  const POR_PAGINA = 50;
+  let _lancamentos = [], _fazendas = [], _safras = [], _talhoes = [], _operadores = [];
+  let _search = '', _filtroFaz = '', _filtroTipo = '', _filtroSafra = '';
 
   async function render() {
     setLoading('mainContent');
@@ -18,29 +17,22 @@ window.module_lancamentos = async function() {
         { data: fazendas },
         { data: safras },
         { data: talhoes },
-        { data: insumos },
-        { data: maquinas },
         { data: operadores },
         { data: lancamentos, error }
       ] = await Promise.all([
         sb.from('fazendas').select('id,nome').eq('ativo',true).order('nome'),
-        sb.from('safras').select('id,nome,fazenda_id').eq('ativo',true).order('nome'),
+        sb.from('safras').select('id,nome,fazenda_id').order('nome'),
         sb.from('talhoes').select('id,nome,fazenda_id').eq('ativo',true).order('nome'),
-        sb.from('insumos').select('id,nome,unidade').eq('ativo',true).order('nome'),
-        sb.from('maquinas').select('id,nome').eq('ativo',true).order('nome'),
         sb.from('operadores').select('id,nome').eq('ativo',true).order('nome'),
         sb.from('lancamentos').select('*, fazendas(nome), safras(nome), talhoes(nome), operadores(nome)', { count: 'exact' })
-          .eq('ativo',true).order('data', { ascending: false }).order('criado_em', { ascending: false }).limit(500)
+          .order('data', { ascending: false }).order('criado_em', { ascending: false }).limit(500)
       ]);
       if(error) throw error;
       _fazendas = fazendas || [];
       _safras = safras || [];
       _talhoes = talhoes || [];
-      _insumos = insumos || [];
-      _maquinas = maquinas || [];
       _operadores = operadores || [];
       _lancamentos = lancamentos || [];
-      _pagina = 1;
       renderUI();
     } catch(e) {
       document.getElementById('mainContent').innerHTML =
@@ -75,7 +67,7 @@ window.module_lancamentos = async function() {
       '<div class="stat-row" style="display:flex;gap:12px;flex-wrap:wrap;padding:16px 20px 0">'+
       '<div class="stat-card green"><div class="stat-card-val">'+vis.length+'</div><div class="stat-card-lbl">Lancamentos</div></div>'+
       '<div class="stat-card blue"><div class="stat-card-val">R$ '+fmt(stats.receitas)+'</div><div class="stat-card-lbl">Total Receitas</div></div>'+
-      '<div class="stat-card red"><div class="stat-card-val">R$ '+fmt(stats.custos)+'</div><div class="stat-card-lbl">Total Custos</div></div>'+
+      '<div class="stat-card red" style="border-top-color:var(--danger,#dc2626)"><div class="stat-card-val" style="color:var(--danger,#dc2626)">R$ '+fmt(stats.custos)+'</div><div class="stat-card-lbl">Total Custos</div></div>'+
       '<div class="stat-card purple"><div class="stat-card-val">R$ '+fmt(stats.saldo)+'</div><div class="stat-card-lbl">Saldo</div></div>'+
       '</div>'+
       '<div class="table-wrap" style="margin:16px 20px">'+
@@ -117,7 +109,7 @@ window.module_lancamentos = async function() {
       '<td>'+esc(l.descricao||'--')+'</td>'+
       '<td style="font-size:12px">'+esc((l.fazendas&&l.fazendas.nome)||'--')+'</td>'+
       '<td style="font-size:12px">'+esc((l.safras&&l.safras.nome)||'--')+'</td>'+
-      '<td style="font-weight:600;color:'+(isCusto?'var(--danger)':'var(--green)')+'">'+fmt(l.valor)+'</td>'+
+      '<td style="font-weight:600;color:'+(isCusto?'var(--danger,#dc2626)':'var(--green)')+'">'+fmt(l.valor)+'</td>'+
       '<td>'+
       '<button class="btn-icon" onclick="window._lanc_edit(this)" data-id="'+l.id+'">Editar</button> '+
       '<button class="btn-icon" onclick="window._lanc_del(this)" data-id="'+l.id+'">Excluir</button>'+
@@ -200,7 +192,7 @@ window.module_lancamentos = async function() {
 
         const payload = { tipo, categoria: cat, data, valor, fazenda_id: fazId, safra_id: safId, talhao_id: talId, operador_id: opId, descricao: desc, observacoes: obs };
         const { error } = isNovo
-          ? await sb.from('lancamentos').insert({ ...payload, ativo: true })
+          ? await sb.from('lancamentos').insert(payload)
           : await sb.from('lancamentos').update(payload).eq('id', l.id);
         if(error) { toast('Erro: '+error.message,'bad'); return; }
         toast(isNovo ? 'Lancamento registrado!' : 'Lancamento atualizado!','ok');
@@ -220,7 +212,7 @@ window.module_lancamentos = async function() {
     var id = btn.dataset.id;
     showConfirm('Excluir este lancamento?',
       async function() {
-        const { error } = await sb.from('lancamentos').update({ ativo: false }).eq('id', id);
+        const { error } = await sb.from('lancamentos').delete().eq('id', id);
         if(error) { toast('Erro: '+error.message,'bad'); return; }
         toast('Lancamento removido','ok'); render();
       }
