@@ -3,142 +3,145 @@
 // admin-operadores.js
 // ============================================================
 window.module_operadores = async function() {
-  const esc  = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const fmtR = n => n!=null ? 'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
-  const fmtD = d => d ? new Date(d+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-  let _ops=[], _fazendas=[], _search='', _fazFiltro='';
+  let _operadores = [], _fazendas = [], _search = '', _filtroFaz = '';
 
   async function render() {
     setLoading('mainContent');
     try {
-      const [{ data: fazendas }, { data: ops, error }] = await Promise.all([
+      const [{ data: fazendas }, { data: operadores, error }] = await Promise.all([
         sb.from('fazendas').select('id,nome').eq('ativo',true).order('nome'),
         sb.from('operadores').select('*, fazendas(nome)').eq('ativo',true).order('nome')
       ]);
       if(error) throw error;
-      _ops = ops||[];
-      _fazendas = fazendas||[];
+      _operadores = operadores || [];
+      _fazendas = fazendas || [];
       renderUI();
     } catch(e) {
-      document.getElementById('mainContent').innerHTML = '<div class="empty-state"><p style="color:var(--danger)">Erro: '+esc(e.message)+'</p></div>';
+      document.getElementById('mainContent').innerHTML =
+        '<div class="empty-state"><p style="color:var(--danger)">Erro ao carregar operadores: '+esc(e.message)+'</p></div>';
     }
   }
 
   function renderUI() {
+    const fazOpts = '<option value="">Todas as fazendas</option>'+_fazendas.map(function(f){
+      return '<option value="'+f.id+'"'+(_filtroFaz===f.id?' selected':'')+'>'+esc(f.nome)+'</option>';
+    }).join('');
+
     document.getElementById('mainContent').innerHTML =
       '<div class="page-header topbar-content">'+
-      '<div class="topbar-title"><span>👷 Operadores</span></div>'+
+      '<div class="topbar-title"><span>Operadores</span></div>'+
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
-      '<select class="search-input" id="fazFiltroO" onchange="window._op_setFaz(this.value)" style="width:160px">'+
-      '<option value="">Todas fazendas</option>'+
-      _fazendas.map(f=>'<option value="'+f.id+'"'+(f.id===_fazFiltro?' selected':'')+'>'+esc(f.nome)+'</option>').join('')+
-      '</select>'+
-      '<input class="search-input" placeholder="🔍 Buscar operador..." value="'+esc(_search)+'" oninput="window._op_search(this.value)" style="width:200px"/>'+
-      '<button class="topbar-btn btn-primary" onclick="window._op_novo()">+ Novo Operador</button>'+
+      '<select class="search-input" id="filtroFazOp" onchange="window._operadores_setFaz(this.value)" style="width:180px">'+fazOpts+'</select>'+
+      '<input class="search-input" id="srchOp" placeholder="Buscar operador..." value="'+esc(_search)+'" oninput="window._operadores_search(this.value)" style="width:200px"/>'+
+      '<button class="topbar-btn btn-primary" onclick="window._operadores_novo()">+ Novo Operador</button>'+
       '</div></div>'+
-
-      '<div style="display:flex;gap:12px;flex-wrap:wrap;padding:16px 20px 0">'+
+      '<div class="stat-row" style="display:flex;gap:12px;flex-wrap:wrap;padding:16px 20px 0">'+
       '<div class="stat-card green"><div class="stat-card-val">'+filtrados().length+'</div><div class="stat-card-lbl">Operadores Ativos</div></div>'+
-      '<div class="stat-card blue"><div class="stat-card-val">'+filtrados().filter(o=>o.cnh).length+'</div><div class="stat-card-lbl">Com CNH</div></div>'+
       '</div>'+
-
       '<div class="table-wrap" style="margin:16px 20px">'+
       '<table class="data-table"><thead><tr>'+
-      '<th>Nome</th><th>Fazenda</th><th>Função</th><th>CNH</th><th>Telefone</th><th>Admissão</th><th>Salário</th><th>Ações</th>'+
-      '</tr></thead><tbody id="operadoresBody">'+renderRows()+'</tbody></table></div>';
+      '<th>Nome</th><th>Funcao</th><th>Fazenda</th><th>Telefone</th><th>CNH</th><th>Acoes</th>'+
+      '</tr></thead><tbody id="operadoresBody">'+
+      renderRows()+
+      '</tbody></table></div>';
   }
 
   function filtrados() {
-    return _ops.filter(o=>{
-      const ok1 = !_fazFiltro || o.fazenda_id===_fazFiltro;
+    return _operadores.filter(function(o) {
+      const ok1 = !_filtroFaz || o.fazenda_id === _filtroFaz;
       const ok2 = !_search || (o.nome||'').toLowerCase().includes(_search.toLowerCase())
-                           || (o.funcao||'').toLowerCase().includes(_search.toLowerCase())
-                           || (o.cpf||'').includes(_search);
-      return ok1&&ok2;
+                           || (o.funcao||'').toLowerCase().includes(_search.toLowerCase());
+      return ok1 && ok2;
     });
   }
 
   function renderRows() {
     const vis = filtrados();
-    if(!vis.length) return '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px">👷 Nenhum operador encontrado</td></tr>';
-    return vis.map(o=>
-      '<tr>'+
-      '<td><strong>'+esc(o.nome)+'</strong>'+(o.cpf?'<br><small style="color:var(--muted)">CPF: '+esc(o.cpf)+'</small>':'')+'</td>'+
-      '<td style="color:var(--muted)">'+esc(o.fazendas?.nome||'—')+'</td>'+
-      '<td>'+esc(o.funcao||'—')+'</td>'+
-      '<td>'+(o.cnh?'<span class="badge badge-green">'+esc(o.categoria_cnh||'')+'</span>':'<span class="badge">Não</span>')+'</td>'+
-      '<td>'+esc(o.telefone||'—')+'</td>'+
-      '<td>'+fmtD(o.data_admissao)+'</td>'+
-      '<td>'+fmtR(o.salario)+'</td>'+
+    if(!vis.length) return '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Nenhum operador encontrado</td></tr>';
+    return vis.map(function(o) {
+      return '<tr>'+
+      '<td><strong>'+esc(o.nome)+'</strong></td>'+
+      '<td><span class="badge">'+esc(o.funcao||'--')+'</span></td>'+
+      '<td>'+esc((o.fazendas&&o.fazendas.nome)||'--')+'</td>'+
+      '<td>'+esc(o.telefone||'--')+'</td>'+
+      '<td>'+(o.cnh ? '<span class="badge badge-green">'+esc(o.cnh_categoria||'CNH')+'</span>' : '--')+'</td>'+
       '<td>'+
-      '<button class="btn-icon" onclick="window._op_edit(''+o.id+'')">✏️</button> '+
-      '<button class="btn-icon" onclick="window._op_del(''+o.id+'',''+esc(o.nome)+'')">🗑️</button>'+
-      '</td></tr>'
-    ).join('');
+      '<button class="btn-icon" onclick="window._operadores_edit(this)" data-id="'+o.id+'">Editar</button> '+
+      '<button class="btn-icon" onclick="window._operadores_del(this)" data-id="'+o.id+'" data-nome="'+esc(o.nome)+'">Excluir</button>'+
+      '</td></tr>';
+    }).join('');
   }
 
-  window._op_search = v=>{ _search=v; document.getElementById('operadoresBody').innerHTML=renderRows(); };
-  window._op_setFaz = v=>{ _fazFiltro=v; renderUI(); };
-  window._op_novo   = ()=>abrirForm(null);
-  window._op_edit   = id=>abrirForm(_ops.find(o=>o.id===id));
+  window._operadores_novo = function() { abrirForm(null); };
+  window._operadores_edit = function(btn) { var id = btn.dataset.id; abrirForm(_operadores.find(function(o){return o.id===id;})); };
+  window._operadores_search = function(v) { _search = v; document.getElementById('operadoresBody').innerHTML = renderRows(); };
+  window._operadores_setFaz = function(v) { _filtroFaz = v; renderUI(); };
 
-  function abrirForm(op) {
-    const isNovo = !op;
-    const fazOpts = _fazendas.map(f=>'<option value="'+f.id+'"'+(op?.fazenda_id===f.id?' selected':'')+'>'+esc(f.nome)+'</option>').join('');
-    showModal(isNovo?'+ Novo Operador':'Editar Operador',
+  function abrirForm(o) {
+    const isNovo = !o;
+    const fazOpts = _fazendas.map(function(f){
+      return '<option value="'+f.id+'"'+(o&&o.fazenda_id===f.id?' selected':'')+'>'+esc(f.nome)+'</option>';
+    }).join('');
+    const funcoes = ['operador','motorista','mecanico','agronomico','supervisor','outro'];
+    const funcOpts = funcoes.map(function(f){
+      return '<option value="'+f+'"'+(o&&o.funcao===f?' selected':'')+'>'+f+'</option>';
+    }).join('');
+    const cats = ['A','AB','B','C','D','E'];
+    const catOpts = cats.map(function(c){
+      return '<option value="'+c+'"'+(o&&o.cnh_categoria===c?' selected':'')+'>'+c+'</option>';
+    }).join('');
+
+    showModal(isNovo ? '+ Novo Operador' : 'Editar Operador',
       '<div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
-      '<div class="form-field" style="grid-column:1/-1"><label>Nome Completo *</label>'+
-      '<input id="op_nome" value="'+esc(op?.nome||'')+'" placeholder="Nome do operador"/></div>'+
-      '<div class="form-field"><label>Fazenda</label>'+
-      '<select id="op_faz"><option value="">Sem fazenda específica</option>'+fazOpts+'</select></div>'+
-      '<div class="form-field"><label>Função / Cargo</label>'+
-      '<input id="op_func" value="'+esc(op?.funcao||'')+'" placeholder="Ex: Operador de Trator"/></div>'+
-      '<div class="form-field"><label>CPF</label>'+
-      '<input id="op_cpf" value="'+esc(op?.cpf||'')+'" placeholder="000.000.000-00"/></div>'+
+      '<div class="form-field"><label>Nome *</label>'+
+      '<input id="op_nome" value="'+esc(o&&o.nome||'')+'" placeholder="Nome completo"/></div>'+
+      '<div class="form-field"><label>Funcao *</label>'+
+      '<select id="op_funcao"><option value="">Selecione...</option>'+funcOpts+'</select></div>'+
+      '<div class="form-field"><label>Fazenda *</label>'+
+      '<select id="op_fazenda"><option value="">Selecione...</option>'+fazOpts+'</select></div>'+
       '<div class="form-field"><label>Telefone</label>'+
-      '<input id="op_tel" value="'+esc(op?.telefone||'')+'" placeholder="(00) 00000-0000"/></div>'+
+      '<input id="op_tel" value="'+esc(o&&o.telefone||'')+'" placeholder="(99) 99999-9999"/></div>'+
+      '<div class="form-field"><label>CPF</label>'+
+      '<input id="op_cpf" value="'+esc(o&&o.cpf||'')+'" placeholder="000.000.000-00"/></div>'+
       '<div class="form-field"><label>CNH</label>'+
-      '<input id="op_cnh" value="'+esc(op?.cnh||'')+'" placeholder="Número da CNH"/></div>'+
+      '<input id="op_cnh" value="'+esc(o&&o.cnh||'')+'" placeholder="Numero da CNH"/></div>'+
       '<div class="form-field"><label>Categoria CNH</label>'+
-      '<select id="op_catcnh">'+
-      ['','A','B','C','D','E','AB','AC'].map(c=>'<option value="'+c+'"'+(op?.categoria_cnh===c?' selected':'')+'>'+( c||'Nenhuma')+'</option>').join('')+
-      '</select></div>'+
-      '<div class="form-field"><label>Data Admissão</label>'+
-      '<input id="op_admissao" type="date" value="'+esc(op?.data_admissao||'')+'"/></div>'+
-      '<div class="form-field"><label>Salário (R$)</label>'+
-      '<input id="op_sal" type="number" step="0.01" min="0" value="'+esc(op?.salario||'')+'"/></div>'+
+      '<select id="op_cat"><option value="">Sem CNH</option>'+catOpts+'</select></div>'+
       '</div>',
-      async function(){
-        const nome = document.getElementById('op_nome').value.trim();
-        if(!nome){ toast('Informe o nome','bad'); return; }
-        const payload={
-          nome,
-          fazenda_id:   document.getElementById('op_faz').value||null,
-          funcao:       document.getElementById('op_func').value.trim()||null,
-          cpf:          document.getElementById('op_cpf').value.trim()||null,
-          telefone:     document.getElementById('op_tel').value.trim()||null,
-          cnh:          document.getElementById('op_cnh').value.trim()||null,
-          categoria_cnh: document.getElementById('op_catcnh').value||null,
-          data_admissao: document.getElementById('op_admissao').value||null,
-          salario:      parseFloat(document.getElementById('op_sal').value)||null
-        };
+      async function() {
+        const nome   = document.getElementById('op_nome').value.trim();
+        const funcao = document.getElementById('op_funcao').value;
+        const fazId  = document.getElementById('op_fazenda').value;
+        const tel    = document.getElementById('op_tel').value.trim() || null;
+        const cpf    = document.getElementById('op_cpf').value.trim() || null;
+        const cnh    = document.getElementById('op_cnh').value.trim() || null;
+        const cat    = document.getElementById('op_cat').value || null;
+
+        if(!nome) { toast('Informe o nome do operador','bad'); return; }
+        if(!funcao) { toast('Selecione a funcao','bad'); return; }
+        if(!fazId) { toast('Selecione a fazenda','bad'); return; }
+
+        const payload = { nome, funcao, fazenda_id: fazId, telefone: tel, cpf, cnh, cnh_categoria: cat };
         const { error } = isNovo
-          ? await sb.from('operadores').insert({ ...payload, ativo:true })
-          : await sb.from('operadores').update(payload).eq('id',op.id);
-        if(error){ toast('Erro: '+error.message,'bad'); return; }
-        toast(isNovo?'Operador cadastrado!':'Operador atualizado!','ok');
+          ? await sb.from('operadores').insert({ ...payload, ativo: true })
+          : await sb.from('operadores').update(payload).eq('id', o.id);
+        if(error) { toast('Erro: '+error.message,'bad'); return; }
+        toast(isNovo ? 'Operador cadastrado!' : 'Operador atualizado!','ok');
         closeModal(); render();
       }
     );
-    setTimeout(()=>document.getElementById('op_nome')?.focus(),100);
+    setTimeout(function(){ var el = document.getElementById('op_nome'); if(el) el.focus(); }, 100);
   }
 
-  window._op_del = function(id,nome){
+  window._operadores_del = function(btn) {
+    var id = btn.dataset.id;
+    var nome = btn.dataset.nome;
     showConfirm('Excluir operador <strong>'+esc(nome)+'</strong>?',
-      async function(){
-        const { error } = await sb.from('operadores').update({ ativo:false }).eq('id',id);
-        if(error){ toast('Erro: '+error.message,'bad'); return; }
+      async function() {
+        const { error } = await sb.from('operadores').update({ ativo: false }).eq('id', id);
+        if(error) { toast('Erro: '+error.message,'bad'); return; }
         toast('Operador removido','ok'); render();
       }
     );
