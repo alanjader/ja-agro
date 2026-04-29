@@ -3,126 +3,135 @@
 // admin-offline.js
 // ============================================================
 window.module_offline = async function() {
-  const esc  = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const fmtDH = d => d ? new Date(d).toLocaleString('pt-BR') : '—';
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const fmtDate = d => d ? new Date(d).toLocaleString('pt-BR') : '--';
 
-  async function render() {
-    setLoading('mainContent');
-    try {
-      const { data, error } = await sb.from('lancamentos_offline')
-        .select('*, usuarios(nome)')
-        .order('criado_em', { ascending:false })
-        .limit(100);
-      if(error) throw error;
-      renderUI(data||[]);
-    } catch(e) {
-      document.getElementById('mainContent').innerHTML = '<div class="empty-state"><p style="color:var(--danger)">Erro: '+esc(e.message)+'</p></div>';
-    }
+  const STORE_KEY = 'ja_agro_offline_queue';
+
+  function getQueue() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); } catch(e) { return []; }
   }
 
-  function renderUI(items) {
-    const pendentes    = items.filter(i=>i.status==='pendente');
-    const sincronizados = items.filter(i=>i.status==='sincronizado');
-    const erros        = items.filter(i=>i.status==='erro');
+  function saveQueue(q) {
+    localStorage.setItem(STORE_KEY, JSON.stringify(q));
+  }
 
+  function render() {
+    const queue = getQueue();
     document.getElementById('mainContent').innerHTML =
       '<div class="page-header topbar-content">'+
-      '<div class="topbar-title"><span>🔄 Fila Offline</span></div>'+
+      '<div class="topbar-title"><span>Fila Offline</span></div>'+
       '<div style="display:flex;gap:8px">'+
-      '<button class="topbar-btn btn-primary" onclick="window._off_sincronizar()">⚡ Sincronizar Pendentes</button>'+
-      '<button class="topbar-btn" onclick="window._off_limpar()">🗑️ Limpar Sincronizados</button>'+
+      (queue.length > 0 ? '<button class="topbar-btn btn-primary" onclick="window._offline_syncAll()">Sincronizar Tudo ('+queue.length+')</button>' : '')+
+      '<button class="topbar-btn" onclick="window._offline_render()" style="background:var(--dark2);color:#fff">Atualizar</button>'+
       '</div></div>'+
-
-      '<div style="display:flex;gap:12px;flex-wrap:wrap;padding:16px 20px 0">'+
-      '<div class="stat-card orange"><div class="stat-card-val">'+pendentes.length+'</div><div class="stat-card-lbl">Pendentes</div></div>'+
-      '<div class="stat-card green"><div class="stat-card-val">'+sincronizados.length+'</div><div class="stat-card-lbl">Sincronizados</div></div>'+
-      '<div class="stat-card" style="border-top-color:var(--danger)"><div class="stat-card-val" style="color:var(--danger)">'+erros.length+'</div><div class="stat-card-lbl">Com Erro</div></div>'+
+      '<div class="stat-row" style="display:flex;gap:12px;flex-wrap:wrap;padding:16px 20px 0">'+
+      '<div class="stat-card '+(queue.length>0?'orange':'green')+'"><div class="stat-card-val">'+queue.length+'</div><div class="stat-card-lbl">Pendentes</div></div>'+
+      '<div class="stat-card blue"><div class="stat-card-val">'+(navigator.onLine ? 'Online' : 'Offline')+'</div><div class="stat-card-lbl">Conexao</div></div>'+
       '</div>'+
-
-      (pendentes.length ? '<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px 16px;margin:16px 20px 0;font-size:13px">'+
-      '⚠️ <strong>'+pendentes.length+' lançamento(s)</strong> aguardando sincronização. Clique em "Sincronizar Pendentes" quando estiver com internet.</div>' : '')+
-
       '<div class="table-wrap" style="margin:16px 20px">'+
-      '<table class="data-table"><thead><tr>'+
-      '<th>Criado em</th><th>Usuário</th><th>Status</th><th>Tentativas</th><th>Erro</th><th>Payload</th><th>Ações</th>'+
-      '</tr></thead><tbody>'+
-      (items.length ? items.map(i=>{
-        const payload = typeof i.payload === 'object' ? i.payload : JSON.parse(i.payload||'{}');
-        const statusCor = { pendente:'badge-yellow', sincronizado:'badge-green', erro:'badge-red' };
-        return '<tr>'+
-          '<td>'+fmtDH(i.criado_em)+'</td>'+
-          '<td>'+esc(i.usuarios?.nome||'—')+'</td>'+
-          '<td><span class="badge '+esc(statusCor[i.status]||'')+'">'+esc(i.status)+'</span></td>'+
-          '<td style="text-align:center">'+esc(i.tentativas||0)+'</td>'+
-          '<td style="color:var(--danger);font-size:12px">'+esc(i.erro_msg||'—')+'</td>'+
-          '<td><small style="color:var(--muted)">'+esc(JSON.stringify(payload).substring(0,60))+'...</small></td>'+
+      (queue.length === 0 ?
+        '<div class="empty-state" style="padding:48px;text-align:center"><div style="font-size:48px">OK</div>'+
+        '<p style="color:var(--muted);margin-top:8px">Nenhum lancamento pendente de sincronizacao</p></div>' :
+        '<table class="data-table"><thead><tr>'+
+        '<th>#</th><th>Data</th><th>Tipo</th><th>Descricao</th><th>Valor (R$)</th><th>Status</th><th>Acoes</th>'+
+        '</tr></thead><tbody>'+
+        queue.map(function(item, idx) {
+          return '<tr>'+
+          '<td>'+(idx+1)+'</td>'+
+          '<td>'+fmtDate(item.criado_em)+'</td>'+
+          '<td><span class="badge '+(item.tipo==='receita'?'badge-green':'')+'">'+esc(item.tipo||'--')+'</span></td>'+
+          '<td>'+esc(item.descricao||item.categoria||'--')+'</td>'+
+          '<td>'+esc(String(item.valor||'--'))+'</td>'+
+          '<td><span class="badge" style="background:#fef3c7;color:#92400e">'+(item.status||'pendente')+'</span></td>'+
           '<td>'+
-          (i.status==='pendente'?'<button class="btn-icon" title="Tentar agora" onclick="window._off_tentar(''+i.id+'')">⚡</button> ':'')+
-          '<button class="btn-icon" title="Excluir" onclick="window._off_excluir(''+i.id+'')">🗑️</button>'+
+          '<button class="btn-icon" onclick="window._offline_sync('+idx+')" title="Sincronizar este item">Sync</button> '+
+          '<button class="btn-icon" onclick="window._offline_remove('+idx+')" title="Remover da fila">Remover</button>'+
           '</td></tr>';
-      }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px">✅ Fila vazia — sem lançamentos offline</td></tr>')+
-      '</tbody></table></div>';
-
-    // Atualiza badge no menu
-    try{
-      const badge = document.getElementById('badgeOffline');
-      if(badge){ badge.textContent=pendentes.length; badge.style.display=pendentes.length>0?'':'none'; }
-    }catch(e){}
+        }).join('')+
+        '</tbody></table>'
+      )+
+      '</div>';
   }
 
-  window._off_sincronizar = async function(){
-    const { data: pendentes } = await sb.from('lancamentos_offline').select('*').eq('status','pendente');
-    if(!pendentes||!pendentes.length){ toast('Nenhum pendente','ok'); return; }
-    toast('Sincronizando '+pendentes.length+' registro(s)...','ok');
-    let ok=0, fail=0;
-    for(const item of pendentes){
-      try{
-        const payload = typeof item.payload==='object' ? item.payload : JSON.parse(item.payload);
-        const { error } = await sb.from('lancamentos').insert({ ...payload, status:'confirmado' });
+  window._offline_render = function() { render(); };
+
+  window._offline_syncAll = async function() {
+    if(!navigator.onLine) { toast('Sem conexao com a internet','bad'); return; }
+    const queue = getQueue();
+    if(!queue.length) { toast('Nenhum item pendente','ok'); return; }
+
+    var ok = 0, erros = 0;
+    for(var i = 0; i < queue.length; i++) {
+      try {
+        const item = queue[i];
+        const payload = Object.assign({}, item);
+        delete payload.criado_em;
+        delete payload.status;
+        const { error } = await sb.from('lancamentos').insert({ ...payload, ativo: true });
         if(error) throw error;
-        await sb.from('lancamentos_offline').update({ status:'sincronizado', sincronizado_em:new Date().toISOString() }).eq('id',item.id);
         ok++;
-      }catch(e){
-        await sb.from('lancamentos_offline').update({ status:'erro', erro_msg:e.message, tentativas:(item.tentativas||0)+1 }).eq('id',item.id);
-        fail++;
+      } catch(e) {
+        erros++;
+        queue[i].status = 'erro: ' + e.message;
       }
     }
-    toast(ok+' sincronizado(s)'+(fail?' | '+fail+' com erro':''),'ok');
+    // Remover os que foram sincronizados com sucesso
+    var novosErros = queue.filter(function(item) { return item.status && item.status.startsWith('erro'); });
+    saveQueue(novosErros);
+    toast(ok + ' sincronizados' + (erros ? ', ' + erros + ' com erro' : ''), erros ? 'bad' : 'ok');
     render();
   };
 
-  window._off_tentar = async function(id){
-    const { data:item } = await sb.from('lancamentos_offline').select('*').eq('id',id).single();
-    if(!item){ toast('Registro não encontrado','bad'); return; }
-    try{
-      const payload = typeof item.payload==='object' ? item.payload : JSON.parse(item.payload);
-      const { error } = await sb.from('lancamentos').insert({ ...payload, status:'confirmado' });
+  window._offline_sync = async function(idx) {
+    if(!navigator.onLine) { toast('Sem conexao com a internet','bad'); return; }
+    const queue = getQueue();
+    const item = queue[idx];
+    if(!item) return;
+    try {
+      const payload = Object.assign({}, item);
+      delete payload.criado_em;
+      delete payload.status;
+      const { error } = await sb.from('lancamentos').insert({ ...payload, ativo: true });
       if(error) throw error;
-      await sb.from('lancamentos_offline').update({ status:'sincronizado', sincronizado_em:new Date().toISOString() }).eq('id',id);
+      queue.splice(idx, 1);
+      saveQueue(queue);
       toast('Sincronizado com sucesso!','ok');
-    }catch(e){
-      await sb.from('lancamentos_offline').update({ status:'erro', erro_msg:e.message, tentativas:(item.tentativas||0)+1 }).eq('id',id);
+      render();
+    } catch(e) {
+      queue[idx].status = 'erro: ' + e.message;
+      saveQueue(queue);
       toast('Erro: '+e.message,'bad');
+      render();
     }
-    render();
   };
 
-  window._off_excluir = function(id){
-    showConfirm('Excluir este registro da fila?',
-      async function(){
-        await sb.from('lancamentos_offline').delete().eq('id',id);
-        toast('Removido da fila','ok'); render();
+  window._offline_remove = function(idx) {
+    showConfirm('Remover este item da fila offline?',
+      function() {
+        const queue = getQueue();
+        queue.splice(idx, 1);
+        saveQueue(queue);
+        toast('Item removido da fila','ok');
+        render();
       }
     );
   };
 
-  window._off_limpar = function(){
-    showConfirm('Limpar todos os registros já sincronizados?',
-      async function(){
-        await sb.from('lancamentos_offline').delete().eq('status','sincronizado');
-        toast('Registros limpos','ok'); render();
-      }
-    );
+  // Funcao utilitaria para adicionar lancamento na fila offline
+  window.addToOfflineQueue = function(lancamento) {
+    const queue = getQueue();
+    queue.push(Object.assign({}, lancamento, {
+      criado_em: new Date().toISOString(),
+      status: 'pendente'
+    }));
+    saveQueue(queue);
+    // Atualizar badge no menu
+    var badge = document.querySelector('[data-module="offline"] .badge-count, [data-module="offline"] span[style*="badge"]');
+    if(!badge) {
+      var navItem = document.querySelector('[data-module="offline"]');
+      if(navItem) navItem.setAttribute('data-count', queue.length);
+    }
   };
 
   render();
