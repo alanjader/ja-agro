@@ -11,11 +11,12 @@ window.module_safras = async function() {
   async function render() {
     setLoading('mainContent');
     try {
-      const [{ data: fazendas }, { data: safras, error }] = await Promise.all([
+      const [{ data: fazendas, error: e1 }, { data: safras, error: e2 }] = await Promise.all([
         sb.from('fazendas').select('id,nome').eq('ativo',true).order('nome'),
-        sb.from('safras').select('*, fazendas(nome)', { count: 'exact' }).eq('ativo',true).order('data_inicio', { ascending: false })
+        sb.from('safras').select('*, fazendas(nome)', { count: 'exact' }).order('data_inicio', { ascending: false })
       ]);
-      if(error) throw error;
+      if(e1) throw e1;
+      if(e2) throw e2;
       _safras = safras || [];
       _fazendas = fazendas || [];
       renderUI();
@@ -41,7 +42,7 @@ window.module_safras = async function() {
       '<button class="topbar-btn btn-primary" onclick="window._safras_nova()">+ Nova Safra</button>'+
       '</div></div>'+
       '<div class="stat-row" style="display:flex;gap:12px;flex-wrap:wrap;padding:16px 20px 0">'+
-      '<div class="stat-card green"><div class="stat-card-val">'+stats.total+'</div><div class="stat-card-lbl">Safras Ativas</div></div>'+
+      '<div class="stat-card green"><div class="stat-card-val">'+stats.total+'</div><div class="stat-card-lbl">Safras</div></div>'+
       '<div class="stat-card blue"><div class="stat-card-val">'+stats.emAndamento+'</div><div class="stat-card-lbl">Em Andamento</div></div>'+
       '<div class="stat-card orange"><div class="stat-card-val">'+stats.planejamento+'</div><div class="stat-card-lbl">Planejamento</div></div>'+
       '</div>'+
@@ -57,8 +58,8 @@ window.module_safras = async function() {
     const vis = filtrados();
     return {
       total: vis.length,
-      emAndamento: vis.filter(s => s.status==='em_andamento').length,
-      planejamento: vis.filter(s => s.status==='planejamento').length
+      emAndamento: vis.filter(function(s){ return s.status==='em_andamento'; }).length,
+      planejamento: vis.filter(function(s){ return s.status==='planejamento'; }).length
     };
   }
 
@@ -73,7 +74,7 @@ window.module_safras = async function() {
 
   function statusBadge(s) {
     if(s==='em_andamento') return '<span class="badge badge-green">Em andamento</span>';
-    if(s==='encerrada') return '<span class="badge" style="background:var(--muted-bg,#e9ecef)">Encerrada</span>';
+    if(s==='encerrada') return '<span class="badge" style="background:#e9ecef">Encerrada</span>';
     return '<span class="badge badge-blue">Planejamento</span>';
   }
 
@@ -126,7 +127,7 @@ window.module_safras = async function() {
       '<input id="saf_area" type="number" step="0.01" min="0" value="'+(s&&s.area_ha||'')+'"/></div>'+
       '<div class="form-field"><label>Status</label>'+
       '<select id="saf_status">'+
-      '<option value="planejamento"'+(s&&s.status==='planejamento'?' selected':'')+'>Planejamento</option>'+
+      '<option value="planejamento"'+(s&&s.status==='planejamento'?' selected':(!s?' selected':''))+'>Planejamento</option>'+
       '<option value="em_andamento"'+(s&&s.status==='em_andamento'?' selected':'')+'>Em andamento</option>'+
       '<option value="encerrada"'+(s&&s.status==='encerrada'?' selected':'')+'>Encerrada</option>'+
       '</select></div>'+
@@ -146,7 +147,7 @@ window.module_safras = async function() {
 
         const payload = { nome, fazenda_id: fazId, cultura, data_inicio: inicio, data_fim_prevista: fim, area_ha: area, status };
         const { error } = isNovo
-          ? await sb.from('safras').insert({ ...payload, ativo: true })
+          ? await sb.from('safras').insert(payload)
           : await sb.from('safras').update(payload).eq('id', s.id);
         if(error) { toast('Erro: '+error.message,'bad'); return; }
         toast(isNovo ? 'Safra cadastrada!' : 'Safra atualizada!','ok');
@@ -161,7 +162,7 @@ window.module_safras = async function() {
     var nome = btn.dataset.nome;
     showConfirm('Excluir safra <strong>'+esc(nome)+'</strong>?',
       async function() {
-        const { error } = await sb.from('safras').update({ ativo: false }).eq('id', id);
+        const { error } = await sb.from('safras').delete().eq('id', id);
         if(error) { toast('Erro: '+error.message,'bad'); return; }
         toast('Safra removida','ok'); render();
       }
