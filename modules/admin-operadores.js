@@ -66,7 +66,7 @@ window.module_operadores = async function() {
       '<td><span class="badge">'+esc(o.funcao||'--')+'</span></td>'+
       '<td>'+esc((o.fazendas&&o.fazendas.nome)||'--')+'</td>'+
       '<td>'+esc(o.telefone||'--')+'</td>'+
-      '<td>'+(o.cnh ? '<span class="badge badge-green">'+esc(o.cnh_categoria||'CNH')+'</span>' : '--')+'</td>'+
+      '<td>'+(o.cnh ? '<span class="badge badge-green">'+esc(o.categoria_cnh||'CNH')+'</span>' : '--')+'</td>'+
       '<td>'+
       '<button class="btn-icon" onclick="window._operadores_edit(this)" data-id="'+o.id+'">Editar</button> '+
       '<button class="btn-icon" onclick="window._operadores_del(this)" data-id="'+o.id+'" data-nome="'+esc(o.nome)+'">Excluir</button>'+
@@ -90,7 +90,7 @@ window.module_operadores = async function() {
     }).join('');
     const cats = ['A','AB','B','C','D','E'];
     const catOpts = cats.map(function(c){
-      return '<option value="'+c+'"'+(o&&o.cnh_categoria===c?' selected':'')+'>'+c+'</option>';
+      return '<option value="'+c+'"'+(o&&o.categoria_cnh===c?' selected':'')+'>'+c+'</option>';
     }).join('');
 
     showModal(isNovo ? '+ Novo Operador' : 'Editar Operador',
@@ -123,7 +123,7 @@ window.module_operadores = async function() {
         if(!funcao) { toast('Selecione a funcao','bad'); return; }
         if(!fazId) { toast('Selecione a fazenda','bad'); return; }
 
-        const payload = { nome, funcao, fazenda_id: fazId, telefone: tel, cpf, cnh, cnh_categoria: cat };
+        const payload = { nome, funcao, fazenda_id: fazId, telefone: tel, cpf, cnh, categoria_cnh: cat };
         const { error } = isNovo
           ? await sb.from('operadores').insert({ ...payload, ativo: true })
           : await sb.from('operadores').update(payload).eq('id', o.id);
