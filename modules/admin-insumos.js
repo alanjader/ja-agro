@@ -60,7 +60,7 @@ window.module_insumos = async function() {
 
   function filtrados() {
     return _insumos.filter(function(i) {
-      const ok1 = !_filtroTipo || i.tipo === _filtroTipo;
+      const ok1 = !_filtroTipo || i.categoria === _filtroTipo;
       const ok2 = !_search || (i.nome||'').toLowerCase().includes(_search.toLowerCase());
       return ok1 && ok2;
     });
@@ -73,7 +73,7 @@ window.module_insumos = async function() {
       var estAlerta = i.estoque_min && i.estoque_atual <= i.estoque_min;
       return '<tr>'+
       '<td><strong>'+esc(i.nome)+'</strong></td>'+
-      '<td><span class="badge">'+esc(i.tipo||'--')+'</span></td>'+
+      '<td><span class="badge">'+esc(i.categoria||'--')+'</span></td>'+
       '<td>'+esc(i.unidade||'--')+'</td>'+
       '<td style="'+(estAlerta?'color:var(--danger);font-weight:600':'')+'">'+fmt(i.estoque_atual)+'</td>'+
       '<td>'+fmt(i.estoque_min)+'</td>'+
@@ -105,8 +105,8 @@ window.module_insumos = async function() {
       '<div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
       '<div class="form-field" style="grid-column:1/-1"><label>Nome *</label>'+
       '<input id="ins_nome" value="'+esc(ins&&ins.nome||'')+'" placeholder="Ex: Glifosato 480 SL"/></div>'+
-      '<div class="form-field"><label>Tipo *</label>'+
-      '<select id="ins_tipo"><option value="">Selecione...</option>'+tipoOpts+'</select></div>'+
+      '<div class="form-field"><label>Categoria *</label>'+
+      '<select id="ins_categoria"><option value="">Selecione...</option>'+tipoOpts+'</select></div>'+
       '<div class="form-field"><label>Unidade *</label>'+
       '<select id="ins_unidade"><option value="">Selecione...</option>'+unidOpts+'</select></div>'+
       '<div class="form-field"><label>Estoque Atual</label>'+
@@ -120,10 +120,10 @@ window.module_insumos = async function() {
       '</div>',
       async function() {
         const nome   = document.getElementById('ins_nome').value.trim();
-        const tipo   = document.getElementById('ins_tipo').value;
+        const tipo   = document.getElementById('ins_categoria').value;
         const unid   = document.getElementById('ins_unidade').value;
         const est    = parseFloat(document.getElementById('ins_estoque').value) || 0;
-        const estMin = parseFloat(document.getElementById('ins_estoque_min').value) || 0;
+        const estMin = parseFloat(document.getElementById('ins_estoque_minimo').value) || 0;
         const preco  = parseFloat(document.getElementById('ins_preco').value) || null;
         const fab    = document.getElementById('ins_fab').value.trim() || null;
 
