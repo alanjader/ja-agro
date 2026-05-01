@@ -149,7 +149,7 @@ window.module_home = async function() {
       return o;
     }
     var html="";
-    html+="<div style=\"padding:16px 20px;width:100%;box-sizing:border-box\">";
+    html+="<div style=\"padding:16px 20px;width:100%;box-sizing:border-box;overflow-x:hidden\">";
     var dtStr=new Date().toLocaleDateString("pt-BR",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
     html+="<div style=\"background:linear-gradient(135deg,#1a3a1a,#2d5a2d 60%,#3d7a3d);border-radius:16px;padding:22px 26px;margin-bottom:22px;display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center\">";
     html+="<div><div style=\"font-size:0.75rem;color:#86efac;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px\">&#x1F33F; JA Agro Intelligence</div>";
@@ -157,14 +157,14 @@ window.module_home = async function() {
     html+="<div style=\"font-size:0.82rem;color:#bbf7d0\">"+dtStr+"</div></div>";
     html+="<div style=\"background:rgba(255,255,255,0.1);border-radius:12px;padding:14px 18px;min-width:200px\">"+climaHtml+"</div>";
     html+="</div>";
-    html+="<div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:13px;margin-bottom:22px\">";
+    html+="<div style=\"display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px\">";
     html+=kpi("&#x1F3E1;","FAZENDAS",totalFaz,"Ativas no sistema","2563eb");
     html+=kpi("&#x1F464;","USUARIOS",totalUsu,"Produtores e equipe","7c3aed");
     html+=kpi("&#x1F5FA;","TALHOES",totalTal,"Total cadastrado","d97706");
     html+=kpi("&#x1F33E;","SAFRAS ABERTAS",safrasAb.length,"Em andamento","16a34a");
     html+=kpi("&#x26A0;","PENDENCIAS",totalPend,"Insumos abaixo do minimo",totalPend>0?"dc2626":"16a34a");
     html+="</div>";
-    html+="<div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-bottom:18px\">";
+    html+="<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px\">";
     html+="<div style=\"background:#fff;border-radius:12px;border:1.5px solid #e5e7eb;padding:18px\">";
     html+="<div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:14px\">";
     html+="<h3 style=\"margin:0;font-size:0.95rem;color:#1a3a1a;font-weight:700\">&#x1F33F; Saude das Safras</h3>";
@@ -185,7 +185,7 @@ window.module_home = async function() {
     html+="<div style=\"background:#16a34a;color:#fff;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0\">&#x1F468;&#x200D;&#x1F33E;</div>";
     html+="<div><div style=\"font-size:0.72rem;font-weight:700;color:#16a34a;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px\">&#x1F4A1; Dica do Agronomo</div>";
     html+="<div style=\"font-size:0.92rem;color:#1a3a1a;line-height:1.6\">"+dica.e+" "+dica.t+"</div></div></div>";
-    html+="<div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-bottom:18px\">";
+    html+="<div style=\"display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px\">";
     html+="<div style=\"background:#fff;border-radius:12px;border:1.5px solid #e5e7eb;padding:18px\">";
     html+="<h3 style=\"margin:0 0 12px;font-size:0.9rem;color:#1a3a1a;font-weight:700\"><span style=\"background:#dcfce7;color:#16a34a;padding:2px 7px;border-radius:5px;font-size:0.65rem;font-weight:700;margin-right:6px\">IA</span>&#x1F33F; Agronomicas</h3>";
     rAgro.slice(0,3).forEach(function(r){html+=rcCard(r);});
@@ -199,7 +199,7 @@ window.module_home = async function() {
     rFin.slice(0,2).forEach(function(r){html+=rcCard(r);});
     html+="</div>";
     html+="</div>";
-    html+="<div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-bottom:18px\">";
+    html+="<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px\">";
     html+="<div style=\"background:#fff;border-radius:12px;border:1.5px solid #e5e7eb;padding:18px\">";
     html+="<div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:14px\">";
     html+="<h3 style=\"margin:0;font-size:0.95rem;color:#1a3a1a;font-weight:700\">&#x1F3E1; Resumo das Fazendas</h3>";
