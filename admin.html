@@ -485,7 +485,7 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="sidebar-section">Visão Geral</div>
   <nav class="sidebar-nav" id="sidebarNav">
     <div class="nav-item active" data-module="home" onclick="loadModule('home',this)">
-      <span class="nav-icon">📊</span> Dashboard
+      <span class="nav-icon">📊</span> Home
     </div>
 
     <div style="height:1px;background:rgba(124,179,66,.08);margin:8px 2px;"></div>
@@ -531,7 +531,26 @@ tbody tr:last-child td{border-bottom:none;}
     <div class="nav-item" data-module="exportar" onclick="loadModule('exportar',this)">
       <span class="nav-icon">📤</span> Exportar
     </div>
-  </nav>
+  
+        <div style="height:1px;background:rgba(124,179,66,.08);margin:8px 2px;"></div>
+        <div style="font-size:9px;font-weight:700;color:rgba(124,179,66,.4);letter-spacing:2px;text-transform:uppercase;padding:8px 14px 4px">ANALYTICS</div>
+
+        <div class="nav-item" data-module="dashboard" onclick="loadModule('dashboard',this)">
+          <span class="nav-icon">📊</span> Dashboard
+        </div>
+
+        <div style="height:1px;background:rgba(124,179,66,.08);margin:8px 2px;"></div>
+        <div style="font-size:9px;font-weight:700;color:rgba(124,179,66,.4);letter-spacing:2px;text-transform:uppercase;padding:8px 14px 4px">QUALIDADE</div>
+
+        <div class="nav-item" data-module="certificacao" onclick="loadModule('certificacao',this)">
+          <span class="nav-icon">🏅</span> Certificação
+        </div>
+
+        <div class="nav-item" data-module="analise-solo" onclick="loadModule('analise-solo',this)">
+          <span class="nav-icon">🧪</span> Análise de Solo
+          <span class="nav-badge" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px">PRO</span>
+        </div>
+</nav>
 
   <div class="sidebar-footer">
     <div class="user-card" id="userCard">
@@ -548,7 +567,7 @@ tbody tr:last-child td{border-bottom:none;}
 <!-- TOPBAR -->
 <header class="topbar">
   <div class="topbar-title" id="topbarTitle">
-    Dashboard <span id="topbarSub"></span>
+    Home <span id="topbarSub"></span>
   </div>
   <div class="topbar-actions" id="topbarActions"></div>
 </header>
@@ -745,6 +764,56 @@ window.sair = async function() {
 
 // ── INIT ──────────────────────────────────────
 initAuth();
+
+
+    // ── Module adapters for new modules ──────────────────────────────────
+    // These wrap the Admin* modules to match the loadModule(window['module_'+name]) pattern
+        window.module_home = async function() {
+      const cont = document.getElementById('mainContent');
+      setTopbar('Home', 'Saúde da safra e indicadores');
+      if(window.AdminHome) {
+        await window.AdminHome.render(cont);
+      }
+    };
+    window.module_dashboard = async function() {
+      const cont = document.getElementById('mainContent');
+      setTopbar('Dashboard', 'Analytics · Gráficos e KPIs');
+      if(window.AdminDashboard) {
+        await window.AdminDashboard.render(cont);
+      } else {
+        setLoading('mainContent');
+        const s = document.createElement('script');
+        s.src = 'modules/admin-dashboard.js?v=' + Date.now();
+        s.onload = async function() { if(window.AdminDashboard) await window.AdminDashboard.render(cont); };
+        document.head.appendChild(s);
+      }
+    };
+    window.module_certificacao = async function() {
+      const cont = document.getElementById('mainContent');
+      setTopbar('Certificação', 'Gestão de certificações e checklists');
+      if(window.AdminCertificacao) {
+        await window.AdminCertificacao.render(cont);
+      } else {
+        setLoading('mainContent');
+        const s = document.createElement('script');
+        s.src = 'modules/admin-certificacao.js?v=' + Date.now();
+        s.onload = async function() { if(window.AdminCertificacao) await window.AdminCertificacao.render(cont); };
+        document.head.appendChild(s);
+      }
+    };
+    window['module_analise-solo'] = async function() {
+      const cont = document.getElementById('mainContent');
+      setTopbar('Análise de Solo', 'Módulo Premium · Análises laboratoriais');
+      if(window.AdminAnaliseSolo) {
+        await window.AdminAnaliseSolo.render(cont);
+      } else {
+        setLoading('mainContent');
+        const s = document.createElement('script');
+        s.src = 'modules/admin-analise-solo.js?v=' + Date.now();
+        s.onload = async function() { if(window.AdminAnaliseSolo) await window.AdminAnaliseSolo.render(cont); };
+        document.head.appendChild(s);
+      }
+    };
 </script>
 </body>
 </html>
