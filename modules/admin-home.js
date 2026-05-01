@@ -88,8 +88,7 @@ window.module_home = async function() {
     if(propCrit>0.3){rFin.push({p:"alta",i:"&#x1F4B0;",t:"Alto custo de reposicao previsto",d:Math.round(propCrit*100)+"% dos insumos abaixo do minimo. Compras emergenciais sao mais caras. Negocie com antecedencia."});}
     else{rFin.push({p:"baixa",i:"&#x1F4A1;",t:"Planejamento de compras",d:"Realize cotacoes com 60-90 dias de antecedencia para insumos da proxima safra. Reduz custo medio em 10-20%."});}
     function kpi(icon,lbl,val,sub,cor){
-      return "<div style=\"background:#fff;border-radius:12px;padding:16px 20px;border:1.5px solid #e5e7eb;position:relative;overflow:hidden\">";
-      var o="";
+      var o="<div style=\"background:#fff;border-radius:12px;padding:16px 20px;border:1.5px solid #e5e7eb;position:relative;overflow:hidden\">";
       o+="<div style=\"position:absolute;top:0;left:0;width:4px;height:100%;background:#"+cor+";\"></div>";
       o+="<div style=\"font-size:1.5rem;line-height:1;margin-bottom:6px\">"+icon+"</div>";
       o+="<div style=\"font-size:1.7rem;font-weight:700;color:#1a3a1a\">"+val+"</div>";
@@ -103,8 +102,7 @@ window.module_home = async function() {
       var cor=pct<=0?"#dc2626":pct<1?"#d97706":"#16a34a";
       var ico=pct<=0?"&#x1F534;":pct<1?"&#x1F7E1;":"&#x1F7E2;";
       var lbl=pct<=0?"Critico":pct<1?"Baixo":"OK";
-      return "<div style=\"display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#f9fafb;border-radius:8px;margin-bottom:5px\">";
-      var o="";
+      var o="<div style=\"display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#f9fafb;border-radius:8px;margin-bottom:5px\">";
       o+="<div style=\"display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#f9fafb;border-radius:8px;margin-bottom:5px\">";
       o+="<span style=\"font-size:0.82rem;color:#374151\">"+ico+" "+esc(ins.nome)+"</span>";
       o+="<span style=\"font-size:0.7rem;font-weight:600;color:#fff;background:"+cor+";padding:2px 8px;border-radius:10px\">"+lbl+"</span>";
