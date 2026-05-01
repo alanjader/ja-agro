@@ -75,7 +75,8 @@ const AdminCertificacao = (() => {
 
   function getSupabase() {
     if (supabase) return supabase;
-    supabase = window.sb;  // Global supabase client from config.js
+    // Use the global 'sb' declared in config.js (const sb = supabase.createClient(...))
+    supabase = (typeof sb !== 'undefined' ? sb : null);
     return supabase;
   }
 
