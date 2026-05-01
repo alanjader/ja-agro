@@ -22,11 +22,11 @@ window.module_lancamentos = async function() {
         { data: maquinas },
         { data: lancamentos, error }
       ] = await Promise.all([
-        sb.from('fazendas').select('id,nome').eq('ativo',true).order('nome'),
+        sb.from('fazendas').select('id,nome,certificada,tipo_certificacao').eq('ativo',true).order('nome'),
         sb.from('safras').select('id,nome,fazenda_id').order('nome'),
-        sb.from('talhoes').select('id,nome,fazenda_id').eq('ativo',true).order('nome'),
+        sb.from('talhoes').select('id,nome,fazenda_id,segue_certificacao').eq('ativo',true).order('nome'),
         sb.from('operadores').select('id,nome').eq('ativo',true).order('nome'),
-        sb.from('insumos').select('id,nome,unidade').eq('ativo',true).order('nome'),
+        sb.from('insumos').select('id,nome,unidade,certificacao_permitida').eq('ativo',true).order('nome'),
         sb.from('maquinas').select('id,nome').eq('ativo',true).order('nome'),
         sb.from('lancamentos').select('*, fazendas(nome), safras(nome), talhoes(nome), operadores(nome), insumos(nome,unidade), maquinas(nome)')
           .order('data_lancamento', { ascending: false }).order('criado_em', { ascending: false }).limit(500)
@@ -163,10 +163,11 @@ window.module_lancamentos = async function() {
       '<div class="form-field"><label>Safra</label>'+
       '<select id="lanc_safra"><option value="">Nenhuma</option>'+safraOpts+'</select></div>'+
       '<div class="form-field"><label>Talhao</label>'+
-      '<select id="lanc_talhao"><option value="">Nenhum</option>'+talhaoOpts+'</select></div>'+
+      '<select id="lanc_talhao" onchange="window._lanc_onTalhaoChange(this.value)"><option value="">Nenhum</option>'+talhaoOpts+'</select></div>'+
       '<div class="form-field"><label>Operador</label>'+
       '<select id="lanc_op"><option value="">Nenhum</option>'+opOpts+'</select></div>'+
-      '<div class="form-field"><label>Insumo</label>'+
+      '<div class="form-field" id="lanc_insumo_wrap"><label>Insumo</label>'+
+      '<div id="lanc_cert_warn" style="display:none;margin-bottom:6px;padding:6px 10px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;font-size:11px;color:#92400e;">&#9888; Certificação ativa: apenas insumos permitidos</div>'+
       '<select id="lanc_insumo"><option value="">Nenhum</option>'+insumoOpts+'</select></div>'+
       '<div class="form-field"><label>Maquina</label>'+
       '<select id="lanc_maq"><option value="">Nenhuma</option>'+maqOpts+'</select></div>'+
@@ -229,5 +230,48 @@ window.module_lancamentos = async function() {
     );
   };
 
-  render();
+  
+
+// Certificação: filtrar insumos quando talhão é selecionado
+function _buildInsumoOpts(insumos, filterCert) {
+  return insumos
+    .filter(function(i) { return !filterCert || i.certificacao_permitida !== false; })
+    .map(function(i) {
+      return '<option value="' + i.id + '">' + esc(i.nome) + '</option>';
+    }).join('');
+}
+
+window._lanc_onTalhaoChange = function(talhaoId) {
+  var talhao = _talhoes.find(function(t) { return t.id === talhaoId; });
+  var filterCert = false;
+  var certLabel = '';
+  if (talhao && talhao.segue_certificacao !== false) {
+    var fazenda = _fazendas.find(function(f) { return f.id === talhao.fazenda_id; });
+    if (fazenda && fazenda.certificada) {
+      filterCert = true;
+      certLabel = fazenda.tipo_certificacao || 'Certificada';
+    }
+  }
+  var sel = document.getElementById('lanc_insumo');
+  var warn = document.getElementById('lanc_cert_warn');
+  if (!sel) return;
+  var currentVal = sel.value;
+  var opts = '<option value="">Nenhum</option>' + _buildInsumoOpts(_insumos, filterCert);
+  sel.innerHTML = opts;
+  // Restore previous selection if still valid
+  if (currentVal) {
+    var stillExists = Array.from(sel.options).some(function(o) { return o.value === currentVal; });
+    if (stillExists) sel.value = currentVal;
+  }
+  if (warn) {
+    if (filterCert) {
+      warn.style.display = 'block';
+      warn.innerHTML = '&#9888; <strong>Certificação ' + esc(certLabel) + ':</strong> apenas insumos com certificação permitida são exibidos.';
+    } else {
+      warn.style.display = 'none';
+    }
+  }
+};
+
+render();
 };
