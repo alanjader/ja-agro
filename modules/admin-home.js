@@ -15,7 +15,7 @@
     if (typeof setTopbar === 'function') setTopbar('Home', 'Saúde da safra e indicadores');
     if (typeof setLoading === 'function') setLoading('mainContent');
 
-    const sb = window.supabase || window.supabaseClient || window._sb;
+    const sb = window.sb;  // Global supabase client from config.js
     if (!sb) {
       container.innerHTML = '<div style="padding:40px;text-align:center;color:#dc2626">Conexão não disponível</div>';
       return;
