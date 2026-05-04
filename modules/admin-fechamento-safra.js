@@ -60,7 +60,7 @@ window.module_fechamento_safra = async function() {
       html += "</div>"
       html += "<div style=\"display:flex;align-items:center;gap:12px\">"
       html += statusBadge(f.status)
-      html += "<button onclick=\"window._fsVerDetalhe('"+f.id+"');\" style=\"background:#1565c0;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px\"">Ver</button>"
+      html += "<button onclick=\"window._fsVerDetalhe('"+f.id+"');\" style=\"background:#1565c0;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px\">Ver</button>"
       html += "</div></div>"
       // KPI summary row
       html += "<div style=\"padding:12px 16px;display:grid;grid-template-columns:repeat(6,1fr);gap:10px\">"
