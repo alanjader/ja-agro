@@ -17,7 +17,7 @@ window.module_lancamentos = async function() {
       sb.from("talhoes").select("id,nome,fazenda_id,certificacao_id").order("nome"),
       sb.from("operadores").select("id,nome,fazenda_id").order("nome"),
       sb.from("insumos").select("id,nome,unidade,preco_unitario,certificacao_permitida").order("nome"),
-      sb.from("maquinas").select("id,nome,fazenda_id,tipo,horimetro_atual").order("nome"),
+      sb.from("maquinas").select("id,nome,fazenda_id,tipo,custo_hora,horimetro_atual").order("nome"),
       sb.from("lancamentos").select("*").order("data_lancamento",{ascending:false}).limit(300)
     ]);
     _fazendas  = fa.data||[];
@@ -172,7 +172,7 @@ window.module_lancamentos = async function() {
     }).join("");
     const maqsDoFaz = fazAtual ? _maquinas.filter(function(m){return m.fazenda_id===fazAtual;}) : _maquinas;
     const maqOpts = maqsDoFaz.map(function(m){
-      return "<option value=\""+m.id+"\""+((l&&l.maquina_id===m.id)?" selected":"")+">"+esc(m.nome)+"</option>";
+      return "<option value=\""+m.id+"\" data-custo=\""+( m.custo_hora||0)+"\""+((l&&l.maquina_id===m.id)?" selected":"")+">"+esc(m.nome)+"</option>";
     }).join("");
     const insumoOpts = _buildInsumoOpts(_insumos, false);
     const unidades = ["kg","L","g","mL","sc","un","cx","t","h","d"];
@@ -279,6 +279,16 @@ window.module_lancamentos = async function() {
       return;
     }
     hw.style.display="block"; qw.style.display="none"; uw.style.display="none";
+    // Auto-fill custo/hora from machine data attribute
+    var maqSel2 = document.getElementById("lanc_maq");
+    var selOpt = maqSel2 && maqSel2.querySelector("option[value=\""+maqId+"\"]");
+    if(selOpt) {
+      var custoMaq = selOpt.getAttribute("data-custo");
+      if(custoMaq && parseFloat(custoMaq) > 0) {
+        var chIn = document.getElementById("lanc_custo_hora");
+        if(chIn) chIn.value = custoMaq;
+      }
+    }
     // Set tipo to despesa
     var ts = document.getElementById("lanc_tipo"); if(ts) ts.value="despesa";
     // Focus horas field
@@ -331,7 +341,7 @@ window.module_lancamentos = async function() {
     }
     if(maqSel){
       var maqs = fazId ? _maquinas.filter(function(m){return m.fazenda_id===fazId;}) : _maquinas;
-      maqSel.innerHTML = "<option value=\"\">Nenhuma</option>"+maqs.map(function(m){return "<option value=\""+m.id+"\">"+esc(m.nome)+"</option>";}).join("");
+      maqSel.innerHTML = "<option value=\"\">Nenhuma</option>"+maqs.map(function(m){return "<option value=\""+m.id+"\" data-custo=\""+( m.custo_hora||0)+"\">"+ esc(m.nome)+"</option>";}).join("");
     }
   };
 
