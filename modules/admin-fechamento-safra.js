@@ -295,6 +295,7 @@ window.module_fechamento_safra = async function() {
     var custoHaGeral = totArea > 0 ? totCusto/totArea : 0;
     var resultadoLiquido = receitaTotal - totCusto;
     var margemPct = receitaTotal > 0 ? (resultadoLiquido/receitaTotal)*100 : 0;
+    var roi = totCusto > 0 ? ((receitaTotal - totCusto) / totCusto) * 100 : 0;
 
     // =============================================
     // STEP 7: Save fechamento_safra record
@@ -313,7 +314,7 @@ window.module_fechamento_safra = async function() {
 
     // Close modal and show result
     document.getElementById("fsModal").remove();
-    window._fsShowResultado(fechId, safra, talResults, { totProd:totProd, totCusto:totCusto, totArea:totArea, totDep:totDep, totInsumos:totInsumos, totMaoObra:totMaoObra, totMaquinas:totMaquinas, totOutros:totOutros, prodMedia:prodMedia, custoScGeral:custoScGeral, custoHaGeral:custoHaGeral, receitaTotal:receitaTotal, resultadoLiquido:resultadoLiquido, margemPct:margemPct, depAtivos:depAtivos });
+    window._fsShowResultado(fechId, safra, talResults, { totProd:totProd, totCusto:totCusto, totArea:totArea, totDep:totDep, totInsumos:totInsumos, totMaoObra:totMaoObra, totMaquinas:totMaquinas, totOutros:totOutros, prodMedia:prodMedia, custoScGeral:custoScGeral, custoHaGeral:custoHaGeral, receitaTotal:receitaTotal, resultadoLiquido:resultadoLiquido, margemPct:margemPct, roi:roi, depAtivos:depAtivos });
   };
 
   window._fsShowResultado = function(fechId, safra, talResults, tot) {
@@ -336,6 +337,7 @@ window.module_fechamento_safra = async function() {
     html += "<div style=\"font-size:12px;color:#555\">Receita Total</div><div style=\"font-size:14px;font-weight:600;color:#2d7d32\">"+fmtBrl(tot.receitaTotal)+"</div>"
     html += "<div style=\"font-size:12px;color:#555\">Custo Total</div><div style=\"font-size:14px;font-weight:600;color:#c62828\">"+fmtBrl(tot.totCusto)+"</div>"
     html += "</div>"
+    html += "<div style=\"font-size:12px;color:" + (tot.roi>=0?"rgba(45,125,50,0.8)":"rgba(198,40,40,0.8)") + "\">ROI</div><div style=\"font-size:18px;font-weight:800;color:"+(tot.roi>=0?"#2d7d32":"#c62828")+"\">"+(typeof tot.roi!=="undefined"?tot.roi.toFixed(1):"-")+"%</div>"
     html += "</div>"
 
     // 6-KPI row
@@ -493,7 +495,7 @@ window.module_fechamento_safra = async function() {
     });
     var safra = fech.safras || {};
     var depAtivosFake = [];
-    var totals = { totProd:fech.producao_total_sc, totCusto:fech.custo_total, totArea:fech.area_total_ha, totDep:fech.custo_depreciacao, totInsumos:fech.custo_insumos, totMaoObra:fech.custo_mao_obra, totMaquinas:fech.custo_maquinas, totOutros:fech.custo_outros, prodMedia:fech.produtividade_sc_ha, custoScGeral:fech.custo_sc, custoHaGeral:fech.custo_ha, receitaTotal:fech.receita_vendas, resultadoLiquido:fech.resultado_liquido, margemPct:fech.margem_pct, depAtivos:depAtivosFake };
+    var totals = { totProd:fech.producao_total_sc, totCusto:fech.custo_total, totArea:fech.area_total_ha, totDep:fech.custo_depreciacao, totInsumos:fech.custo_insumos, totMaoObra:fech.custo_mao_obra, totMaquinas:fech.custo_maquinas, totOutros:fech.custo_outros, prodMedia:fech.produtividade_sc_ha, custoScGeral:fech.custo_sc, custoHaGeral:fech.custo_ha, receitaTotal:fech.receita_vendas, resultadoLiquido:fech.resultado_liquido, margemPct:fech.margem_pct, roi:(parseFloat(fech.custo_total||0)>0?((parseFloat(fech.receita_vendas||0)-parseFloat(fech.custo_total||0))/parseFloat(fech.custo_total||0)*100):0), depAtivos:depAtivosFake };
     window._fsShowResultado(fechId, safra, talRows, totals);
   };
 
