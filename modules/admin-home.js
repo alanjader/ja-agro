@@ -1,245 +1,372 @@
-/* admin-home.js - Home Premium v3.0 */
 window.module_home = async function() {
   var c = document.getElementById("mainContent");
-  var esc = function(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); };
-  var fmtR = function(v) { return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(v||0); };
-  var fmtN = function(v) { return new Intl.NumberFormat("pt-BR").format(v||0); };
-  if (typeof setTopbar==="function") setTopbar("Home","Vision geral inteligente da operacao");
-  if (typeof setLoading==="function") setLoading("mainContent");
-  if (typeof sb==="undefined"||!sb) { c.innerHTML="<div style=\"padding:40px;text-align:center;color:#dc2626\">Conexao nao disponivel</div>"; return; }
-  try {
-    var r = await Promise.all([
-      sb.from("fazendas").select("*",{count:"exact",head:true}),
-      sb.from("usuarios").select("*",{count:"exact",head:true}),
-      sb.from("talhoes").select("*",{count:"exact",head:true}),
-      sb.from("fazendas").select("id,nome,cidade,estado,certificada,tipo_certificacao").eq("ativo",true).order("nome"),
-      sb.from("safras").select("id,nome,cultura,area_total,status,data_inicio,data_fim_prevista,fazenda_id,fazendas(nome,cidade,estado)").eq("status","aberta").limit(10),
-      sb.from("lancamentos").select("id,tipo,despesa,descricao,data_lancamento,fazenda_id,fazendas(nome)").order("data_lancamento",{ascending:false}).limit(8),
-      sb.from("insumos").select("id,nome,categoria,estoque_atual,estoque_minimo,unidade").eq("ativo",true),
-      sb.from("talhoes").select("id,nome,area,fazenda_id").eq("ativo",true)
-    ]);
-    var totalFaz=r[0].count||0, totalUsu=r[1].count||0, totalTal=r[2].count||0;
-    var fazendas=r[3].data||[], safrasAb=r[4].data||[], ultLanc=r[5].data||[];
-    var insumos=r[6].data||[], talhoesTd=r[7].data||[];
-    var insBaixos=insumos.filter(function(i){return (i.estoque_minimo||0)>0&&(i.estoque_atual||0)<(i.estoque_minimo||0);});
-    var totalPend=insBaixos.length;
-    var totalDesp=ultLanc.filter(function(l){return l.tipo==="despesa";}).reduce(function(s,l){return s+(l.despesa||0);},0);
-    var totalRec=ultLanc.filter(function(l){return l.tipo==="receita";}).reduce(function(s,l){return s+(l.despesa||0);},0);
-    var hora=new Date().getHours();
-    var saud=hora<12?"Bom dia":hora<18?"Boa tarde":"Boa noite";
-    var uNome=(typeof window._jaUser!=="undefined"&&window._jaUser)?window._jaUser.nome:"Produtor";
-    var fazPrinc=(safrasAb.length>0&&safrasAb[0].fazendas)?safrasAb[0].fazendas:(fazendas.length>0?fazendas[0]:null);
-    var cidadeClima=fazPrinc?(fazPrinc.cidade||fazPrinc.nome||"Brasil"):"Brasil";
-    var climaHtml="<span style=\"color:#9ca3af;font-size:0.85rem\">Carregando clima...</span>";
-    try {
-      var wResp=await fetch("https://wttr.in/"+encodeURIComponent(cidadeClima)+"?format=j1");
-      if (wResp.ok) {
-        var wData=await wResp.json();
-        var cur=wData.current_condition[0];
-        var wCode=parseInt(cur.weatherCode);
-        var wIcon=wCode>=395?"&#x26C8;":wCode>=302?"&#x1F327;":wCode>=263?"&#x1F326;":wCode>=116?"&#x26C5;":"&#x2600;";
-        var wPt=(cur.lang_pt?cur.lang_pt[0].value:cur.weatherDesc[0].value);
-        climaHtml="<div style=\"display:flex;align-items:center;gap:10px\">";
-        climaHtml+="<span style=\"font-size:2rem\">"+ wIcon +"</span>";
-        climaHtml+="<div><div style=\"font-size:1.6rem;font-weight:700;color:#fff\">"+cur.temp_C+"&deg;C</div>";
-        climaHtml+="<div style=\"font-size:0.75rem;color:#bbf7d0\">"+esc(wPt)+"</div></div>";
-        climaHtml+="<div style=\"border-left:1px solid rgba(255,255,255,0.3);padding-left:10px;font-size:0.75rem;color:#bbf7d0;line-height:1.8\">";
-        climaHtml+="&#x1F4A7; "+cur.humidity+"% &nbsp;&#x1F32C; "+cur.windspeedKmph+" km/h</div></div>";
-        climaHtml+="<div style=\"font-size:0.7rem;color:#86efac;margin-top:4px\">&#x1F4CD; "+esc(cidadeClima)+"</div>";
-      }
-    } catch(we) { climaHtml="<span style=\"color:#86efac;font-size:0.8rem\">Clima indisponivel</span>"; }
-    var dicas=[
-      {e:"&#x1F331;",t:"Lembre-se: solo saudavel e a base de tudo. Ja fez sua analise este semestre?"},
-      {e:"&#x1F41B;",t:"Se voce viu a praga, ela ja se instalou. Monitoramento frequente e o segredo!"},
-      {e:"&#x1F327;",t:"Chuva na dose certa e presente. Chuva demais e problema. Drene com sabedoria!"},
-      {e:"&#x1F33F;",t:"Rotacao de culturas nao e opcional, e estrategia. Seu solo agradece."},
-      {e:"&#x1F9EA;",t:"pH fora do ideal e igual a dinheiro jogado fora em fertilizante. Corrija o solo primeiro!"},
-      {e:"&#x1F4C5;",t:"Janela de plantio e como voo: perdeu, espera o proximo - que pode custar caro."},
-      {e:"&#x1F4A7;",t:"Irrigacao de madrugada: menos evaporacao, mais eficiencia. A lavoura prefere acordar molhada."},
-      {e:"&#x1F33E;",t:"Populacao de plantas ideal e ciencia, nao chute. Densidade certa = produtividade maxima."},
-      {e:"&#x1F91D;",t:"Assistencia tecnica nao e custo, e investimento. Um bom agronomo paga mais do que cobra."},
-      {e:"&#x1F4CA;",t:"Dados valem ouro. Quem nao registra, nao sabe o que aconteceu - e repete os erros."}
-    ];
-    var dica=dicas[new Date().getDate()%dicas.length];
-    var rAgro=[], rGer=[], rFin=[];
-    var temSafra=safrasAb.length>0;
-    var diasInicio=0;
-    if(temSafra&&safrasAb[0].data_inicio){diasInicio=Math.floor((new Date()-new Date(safrasAb[0].data_inicio))/(86400000));}
-    var cultPrinc=temSafra?(safrasAb[0].cultura||safrasAb[0].nome||"safra atual"):"safra";
-    if(temSafra){
-      if(diasInicio>90)rAgro.push({p:"alta",i:"&#x1F33F;",t:"Avaliacao de desenvolvimento",d:"Safra de "+esc(cultPrinc)+" com "+diasInicio+" dias. Verifique estagio fenologico e ajuste nutricao de cobertura."});
-      else rAgro.push({p:"media",i:"&#x1F331;",t:"Monitoramento inicial da safra",d:"Safra em fase inicial ("+diasInicio+" dias). Realize monitoramento de pragas a cada 7 dias. Priorize estabelecimento do estande."});
-    } else { rAgro.push({p:"baixa",i:"&#x1F4CB;",t:"Sem safras em andamento",d:"Nenhuma safra ativa. Ideal para planejamento: analise de solo, escolha de cultivares e cronograma de insumos."}); }
-    if(insBaixos.length>0){
-      var nIns=insBaixos.slice(0,2).map(function(i){return i.nome;}).join(", ");
-      rAgro.push({p:"alta",i:"&#x26A0;&#xFE0F;",t:"Reposicao urgente de insumos",d:"Estoque critico: "+esc(nIns)+(insBaixos.length>2?" e mais "+(insBaixos.length-2):"")+ ". Providencie reposicao antes do proximo ciclo."});
-    } else if(insumos.length>0){rAgro.push({p:"baixa",i:"&#x2705;",t:"Estoque de insumos adequado",d:"Todos os insumos monitorados estao acima do minimo. Revise previsao de consumo para proximas 4 semanas."});}
-    if(rAgro.length<3)rAgro.push({p:"media",i:"&#x1F9EA;",t:"Analise de solo recomendada",d:"Recomenda-se analise de solo a cada 2 anos. Verifique se os talhoes ativos possuem laudos atualizados."});
-    var fazSemSafra=fazendas.filter(function(f){return!safrasAb.some(function(s){return s.fazenda_id===f.id;});});
-    if(fazSemSafra.length>0){rGer.push({p:"media",i:"&#x1F3E1;",t:"Fazendas sem safra ativa",d:fazSemSafra.length+" fazenda(s) sem safra: "+esc(fazSemSafra.slice(0,2).map(function(f){return f.nome;}).join(", "))+". Avalie ociosidade."});}
-    var temCert=fazendas.some(function(f){return f.certificada;});
-    if(temCert){rGer.push({p:"alta",i:"&#x1F3C5;",t:"Conformidade de certificacao",d:"Fazendas certificadas identificadas. Realize auditoria interna antes do proximo ciclo de auditoria externa."});}
-    else{rGer.push({p:"baixa",i:"&#x1F4CB;",t:"Certificacao pode agregar valor",d:"Nenhuma fazenda certificada. Programas como Organico MAPA podem aumentar o valor do produto em ate 30%."});}
-    if(ultLanc.length>0){
-      if(totalRec<totalDesp){rFin.push({p:"alta",i:"&#x1F4C9;",t:"Saldo negativo nos lancamentos",d:"Despesas ("+fmtR(totalDesp)+") superiores as receitas ("+fmtR(totalRec)+"). Revise o fluxo de caixa urgentemente."});}
-      else{rFin.push({p:"baixa",i:"&#x1F4C8;",t:"Fluxo positivo recente",d:"Receitas ("+fmtR(totalRec)+") superiores as despesas ("+fmtR(totalDesp)+"). Mantenha o controle e reinvista estrategicamente."});}
-    } else{rFin.push({p:"media",i:"&#x1F4CA;",t:"Sem registros financeiros recentes",d:"Inicie o registro de despesas e receitas para obter analise de rentabilidade por safra."});}
-    var propCrit=insumos.length>0?insBaixos.length/insumos.length:0;
-    if(propCrit>0.3){rFin.push({p:"alta",i:"&#x1F4B0;",t:"Alto custo de reposicao previsto",d:Math.round(propCrit*100)+"% dos insumos abaixo do minimo. Compras emergenciais sao mais caras. Negocie com antecedencia."});}
-    else{rFin.push({p:"baixa",i:"&#x1F4A1;",t:"Planejamento de compras",d:"Realize cotacoes com 60-90 dias de antecedencia para insumos da proxima safra. Reduz custo medio em 10-20%."});}
-    function kpi(icon,lbl,val,sub,cor){
-      var o="<div style=\"background:#fff;border-radius:12px;padding:16px 20px;border:1.5px solid #e5e7eb;position:relative;overflow:hidden\">";
-      o+="<div style=\"position:absolute;top:0;left:0;width:4px;height:100%;background:#"+cor+";\"></div>";
-      o+="<div style=\"font-size:1.5rem;line-height:1;margin-bottom:6px\">"+icon+"</div>";
-      o+="<div style=\"font-size:1.7rem;font-weight:700;color:#1a3a1a\">"+val+"</div>";
-      o+="<div style=\"font-size:0.68rem;font-weight:700;letter-spacing:1px;color:#"+cor+";margin-top:2px\">"+lbl+"</div>";
-      o+="<div style=\"font-size:0.74rem;color:#9ca3af;margin-top:2px\">"+sub+"</div>";
-      o+="</div>";
-      return o;
-    }
-    function semCard(ins){
-      var pct=(ins.estoque_minimo||0)>0?(ins.estoque_atual||0)/(ins.estoque_minimo||1):1;
-      var cor=pct<=0?"#dc2626":pct<1?"#d97706":"#16a34a";
-      var ico=pct<=0?"&#x1F534;":pct<1?"&#x1F7E1;":"&#x1F7E2;";
-      var lbl=pct<=0?"Critico":pct<1?"Baixo":"OK";
-      var o="";
-      o+="<div style=\"display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#f9fafb;border-radius:8px;margin-bottom:5px\">";
-      o+="<span style=\"font-size:0.82rem;color:#374151\">"+ico+" "+esc(ins.nome)+"</span>";
-      o+="<span style=\"font-size:0.7rem;font-weight:600;color:#fff;background:"+cor+";padding:2px 8px;border-radius:10px\">"+lbl+"</span>";
-      o+="</div>";
-      return o;
-    }
-    function rcCard(r){
-      var c=r.p==="alta"?"#dc2626":r.p==="media"?"#d97706":"#16a34a";
-      var bg=r.p==="alta"?"#fef2f2":r.p==="media"?"#fffbeb":"#f0fdf4";
-      var o="";
-      o+="<div style=\"background:"+bg+";border:1px solid "+c+"33;border-left:3px solid "+c+";border-radius:8px;padding:11px 13px;margin-bottom:9px\">";
-      o+="<div style=\"font-size:0.83rem;font-weight:600;color:#1a3a1a;margin-bottom:3px\">"+r.i+" "+esc(r.t)+"</div>";
-      o+="<div style=\"font-size:0.78rem;color:#6b7280;line-height:1.5\">"+r.d+"</div>";
-      o+="</div>";
-      return o;
-    }
-    function sfCard(sf){
-      var diasFim=sf.data_fim_prevista?Math.floor((new Date(sf.data_fim_prevista)-new Date())/(86400000)):null;
-      var sc=diasFim!==null&&diasFim<30?"#dc2626":diasFim!==null&&diasFim<60?"#d97706":"#16a34a";
-      var sl=diasFim!==null&&diasFim<30?"Atencao":diasFim!==null&&diasFim<60?"Alerta":"Normal";
-      var o="";
-      o+="<div style=\"padding:10px 0;border-bottom:1px solid #f3f4f6\">";
-      o+="<div style=\"display:flex;justify-content:space-between;align-items:flex-start\">";
-      o+="<div><div style=\"font-weight:600;color:#374151;font-size:0.88rem\">&#x1F33E; "+esc(sf.nome)+"</div>";
-      o+="<div style=\"font-size:0.76rem;color:#9ca3af\">"+esc((sf.fazendas&&sf.fazendas.nome)||"")+(sf.cultura?" &middot; "+esc(sf.cultura):"")+(sf.area_total?" &middot; "+fmtN(sf.area_total)+"ha":"")+"</div></div>";
-      o+="<span style=\"font-size:0.7rem;font-weight:600;color:#fff;background:"+sc+";padding:3px 9px;border-radius:10px\">"+sl+"</span>";
-      o+="</div></div>";
-      return o;
-    }
-    function fazCard(f){
-      var temSf=safrasAb.some(function(s){return s.fazenda_id===f.id;});
-      var talFaz=talhoesTd.filter(function(t){return t.fazenda_id===f.id;});
-      var aFaz=talFaz.reduce(function(s,t){return s+(t.area||0);},0);
-      var o="";
-      o+="<div style=\"display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f3f4f6\">";
-      o+="<div style=\"display:flex;align-items:center;gap:9px\">";
-      o+="<div style=\"width:34px;height:34px;background:#f0fdf4;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem\">&#x1F3E1;</div>";
-      o+="<div><div style=\"font-weight:600;color:#374151;font-size:0.86rem\">"+esc(f.nome)+"</div>";
-      o+="<div style=\"font-size:0.73rem;color:#9ca3af\">"+(f.cidade||"")+(f.estado?" - "+f.estado:"")+(aFaz>0?" &middot; "+fmtN(aFaz)+"ha":"")+"</div></div></div>";
-      o+="<div style=\"display:flex;gap:5px;align-items:center\">";
-      if(f.certificada)o+="<span style=\"font-size:0.66rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:5px;font-weight:600\">&#x1F3C5; Cert.</span>";
-      o+="<span style=\"font-size:0.7rem;font-weight:600;padding:3px 8px;border-radius:10px;"+(temSf?"background:#dcfce7;color:#16a34a":"background:#f3f4f6;color:#9ca3af")+"\">"+( temSf?"Em safra":"Inativa")+"</span>";
-      o+="</div></div>";
-      return o;
-    }
-    var html="";
-    html+="<div style=\"padding:16px 20px;width:100%;box-sizing:border-box;overflow-x:hidden\">";
-    var dtStr=new Date().toLocaleDateString("pt-BR",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
-    html+="<div style=\"background:linear-gradient(135deg,#1a3a1a,#2d5a2d 60%,#3d7a3d);border-radius:16px;padding:22px 26px;margin-bottom:22px;display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center\">";
-    html+="<div><div style=\"font-size:0.75rem;color:#86efac;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px\">&#x1F33F; JA Agro Intelligence</div>";
-    html+="<h2 style=\"margin:0 0 3px;font-size:1.5rem;color:#fff;font-weight:700\">"+saud+", "+esc(uNome)+"! &#x1F44B;</h2>";
-    html+="<div style=\"font-size:0.82rem;color:#bbf7d0\">"+dtStr+"</div></div>";
-    html+="<div style=\"background:rgba(255,255,255,0.1);border-radius:12px;padding:14px 18px;min-width:200px\">"+climaHtml+"</div>";
-    html+="</div>";
-    html+="<div style=\"display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px\">";
-    html+=kpi("&#x1F3E1;","FAZENDAS",totalFaz,"Ativas no sistema","2563eb");
-    html+=kpi("&#x1F464;","USUARIOS",totalUsu,"Produtores e equipe","7c3aed");
-    html+=kpi("&#x1F5FA;","TALHOES",totalTal,"Total cadastrado","d97706");
-    html+=kpi("&#x1F33E;","SAFRAS ABERTAS",safrasAb.length,"Em andamento","16a34a");
-    html+=kpi("&#x26A0;","PENDENCIAS",totalPend,"Insumos abaixo do minimo",totalPend>0?"dc2626":"16a34a");
-    html+="</div>";
-    html+="<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px\">";
-    html+="<div style=\"background:#fff;border-radius:12px;border:1.5px solid #e5e7eb;padding:18px\">";
-    html+="<div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:14px\">";
-    html+="<h3 style=\"margin:0;font-size:0.95rem;color:#1a3a1a;font-weight:700\">&#x1F33F; Saude das Safras</h3>";
-    html+="<button onclick=\"loadModule('safras',document.querySelector('[data-module=safras]'));\" style=\"background:none;border:none;color:#16a34a;cursor:pointer;font-size:0.78rem;font-weight:600\">Ver todas &#x2192;</button></div>";
-    if(safrasAb.length===0){html+="<p style=\"color:#9ca3af;text-align:center;padding:18px 0;font-size:0.88rem\">Nenhuma safra em andamento</p>";
-    }else{safrasAb.forEach(function(sf){html+=sfCard(sf);});}
-    html+="</div>";
-    html+="<div style=\"background:#fff;border-radius:12px;border:1.5px solid #e5e7eb;padding:18px\">";
-    html+="<div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:14px\">";
-    html+="<h3 style=\"margin:0;font-size:0.95rem;color:#1a3a1a;font-weight:700\">&#x1F9EA; Semaforo de Estoque</h3>";
-    html+="<button onclick=\"loadModule('insumos',document.querySelector('[data-module=insumos]'));\" style=\"background:none;border:none;color:#16a34a;cursor:pointer;font-size:0.78rem;font-weight:600\">Ver todos &#x2192;</button></div>";
-    var insComMin=insumos.filter(function(i){return (i.estoque_minimo||0)>0;});
-    if(insComMin.length===0){html+="<p style=\"color:#9ca3af;text-align:center;padding:18px 0;font-size:0.88rem\">Configure estoque minimo nos insumos</p>";
-    }else{insComMin.slice(0,6).forEach(function(ins){html+=semCard(ins);});}
-    html+="</div>";
-    html+="</div>";
-    html+="<div style=\"background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #86efac;border-radius:12px;padding:16px 20px;margin-bottom:18px;display:flex;align-items:flex-start;gap:14px\">";
-    html+="<div style=\"background:#16a34a;color:#fff;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0\">&#x1F468;&#x200D;&#x1F33E;</div>";
-    html+="<div><div style=\"font-size:0.72rem;font-weight:700;color:#16a34a;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px\">&#x1F4A1; Dica do Agronomo</div>";
-    html+="<div style=\"font-size:0.92rem;color:#1a3a1a;line-height:1.6\">"+dica.e+" "+dica.t+"</div></div></div>";
-    html+="<div style=\"display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px\">";
-    html+="<div style=\"background:#fff;border-radius:12px;border:1.5px solid #e5e7eb;padding:18px\">";
-    html+="<h3 style=\"margin:0 0 12px;font-size:0.9rem;color:#1a3a1a;font-weight:700\"><span style=\"background:#dcfce7;color:#16a34a;padding:2px 7px;border-radius:5px;font-size:0.65rem;font-weight:700;margin-right:6px\">IA</span>&#x1F33F; Agronomicas</h3>";
-    rAgro.slice(0,3).forEach(function(r){html+=rcCard(r);});
-    html+="</div>";
-    html+="<div style=\"background:#fff;border-radius:12px;border:1.5px solid #e5e7eb;padding:18px\">";
-    html+="<h3 style=\"margin:0 0 12px;font-size:0.9rem;color:#1a3a1a;font-weight:700\"><span style=\"background:#ede9fe;color:#7c3aed;padding:2px 7px;border-radius:5px;font-size:0.65rem;font-weight:700;margin-right:6px\">IA</span>&#x1F4CB; Gerenciais</h3>";
-    rGer.slice(0,2).forEach(function(r){html+=rcCard(r);});
-    html+="</div>";
-    html+="<div style=\"background:#fff;border-radius:12px;border:1.5px solid #e5e7eb;padding:18px\">";
-    html+="<h3 style=\"margin:0 0 12px;font-size:0.9rem;color:#1a3a1a;font-weight:700\"><span style=\"background:#fef3c7;color:#d97706;padding:2px 7px;border-radius:5px;font-size:0.65rem;font-weight:700;margin-right:6px\">IA</span>&#x1F4B0; Financeiras</h3>";
-    rFin.slice(0,2).forEach(function(r){html+=rcCard(r);});
-    html+="</div>";
-    html+="</div>";
-    html+="<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px\">";
-    html+="<div style=\"background:#fff;border-radius:12px;border:1.5px solid #e5e7eb;padding:18px\">";
-    html+="<div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:14px\">";
-    html+="<h3 style=\"margin:0;font-size:0.95rem;color:#1a3a1a;font-weight:700\">&#x1F3E1; Resumo das Fazendas</h3>";
-    html+="<button onclick=\"loadModule('fazendas',document.querySelector('[data-module=fazendas]'));\" style=\"background:none;border:none;color:#16a34a;cursor:pointer;font-size:0.78rem;font-weight:600\">Ver todas &#x2192;</button></div>";
-    if(fazendas.length===0){html+="<p style=\"color:#9ca3af;text-align:center;padding:18px 0;font-size:0.88rem\">Nenhuma fazenda cadastrada</p>";
-    }else{fazendas.slice(0,5).forEach(function(f){html+=fazCard(f);});}
-    html+="</div>";
-    html+="<div style=\"background:#fff;border-radius:12px;border:1.5px solid #e5e7eb;padding:18px\">";
-    html+="<div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:14px\">";
-    html+="<h3 style=\"margin:0;font-size:0.95rem;color:#1a3a1a;font-weight:700\">&#x1F4CB; Ultimos Lancamentos</h3>";
-    html+="<button onclick=\"loadModule('lancamentos',document.querySelector('[data-module=lancamentos]'));\" style=\"background:none;border:none;color:#16a34a;cursor:pointer;font-size:0.78rem;font-weight:600\">Ver todos &#x2192;</button></div>";
-    if(ultLanc.length===0){html+="<p style=\"color:#9ca3af;text-align:center;padding:18px 0;font-size:0.88rem\">Nenhum lancamento ainda</p>";
-    }else{
-      ultLanc.slice(0,6).forEach(function(l){
-        var isD=l.tipo==="despesa";
-        var dFmt=l.data_lancamento?new Date(l.data_lancamento+"T00:00:00").toLocaleDateString("pt-BR"):"";
-        html+="<div style=\"display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f3f4f6\">";
-        html+="<div style=\"display:flex;align-items:center;gap:7px\">";
-        html+="<div style=\"width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;"+(isD?"background:#fee2e2;color:#dc2626":"background:#dcfce7;color:#16a34a")+"\">"+(isD?"D":"R")+"</div>";
-        html+="<div><div style=\"font-size:0.82rem;font-weight:500;color:#374151\">"+esc(l.descricao||"")+"</div>";
-        html+="<div style=\"font-size:0.71rem;color:#9ca3af\">"+dFmt+(l.fazendas?" &middot; "+esc(l.fazendas.nome):"")+"</div></div></div>";
-        html+="<div style=\"font-weight:600;font-size:0.83rem;color:"+(isD?"#dc2626":"#16a34a")+"\">"+(isD?"-":"+")+fmtR(l.despesa||0)+"</div></div>";
-      });
-    }
-    html+="</div>";
-    html+="</div>";
-    html+="<div style=\"background:linear-gradient(135deg,#f8fafc,#f0fdf4);border:1.5px solid #e5e7eb;border-radius:12px;padding:16px 20px;margin-bottom:8px\">";
-    html+="<h3 style=\"margin:0 0 12px;font-size:0.9rem;color:#1a3a1a;font-weight:700\">&#x26A1; Acoes Rapidas</h3>";
-    html+="<div style=\"display:flex;flex-wrap:wrap;gap:9px\">";
-    html+="<button onclick=\"loadModule('lancamentos',document.querySelector('[data-module=lancamentos]'));\" style=\"background:#16a34a;color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-size:0.83rem;font-weight:600\">+ Novo Lancamento</button>";
-    html+="<button onclick=\"loadModule('safras',document.querySelector('[data-module=safras]'));\" style=\"background:#fff;color:#1a3a1a;border:1.5px solid #e5e7eb;padding:9px 16px;border-radius:8px;cursor:pointer;font-size:0.83rem\">&#x1F33E; Safras</button>";
-    html+="<button onclick=\"loadModule('insumos',document.querySelector('[data-module=insumos]'));\" style=\"background:#fff;color:#1a3a1a;border:1.5px solid #e5e7eb;padding:9px 16px;border-radius:8px;cursor:pointer;font-size:0.83rem\">&#x1F9EA; Insumos</button>";
-    html+="<button onclick=\"loadModule('dashboard',document.querySelector('[data-module=dashboard]'));\" style=\"background:#fff;color:#1a3a1a;border:1.5px solid #e5e7eb;padding:9px 16px;border-radius:8px;cursor:pointer;font-size:0.83rem\">&#x1F4CA; Dashboard</button>";
-    html+="<button onclick=\"loadModule('certificacao',document.querySelector('[data-module=certificacao]'));\" style=\"background:#fff;color:#1a3a1a;border:1.5px solid #e5e7eb;padding:9px 16px;border-radius:8px;cursor:pointer;font-size:0.83rem\">&#x1F3C5; Certificacao</button>";
-    html+="</div></div>";
-    html+="<div style=\"text-align:center;padding:12px 0 2px;font-size:0.7rem;color:#d1d5db\">&#x23F1; Atualizado em "+new Date().toLocaleTimeString("pt-BR")+" &middot; JA Agro Intelligence v1.0</div>";
-    html+="</div>";
-    c.innerHTML=html;
-  } catch(e) {
-    c.innerHTML="<div style=\"padding:40px;text-align:center;color:#dc2626\">Erro ao carregar Home: "+String(e.message).replace(/</g,"&lt;")+"</div>";
+  if (!c) return;
+  c.innerHTML = "<div style=\"padding:20px;text-align:center;color:#888\">Carregando inteligencia da operacao...</div>";
+
+  // Helper functions
+  function fmtBrl(n) { return "R$ " + parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function fmtSc(n) { return parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1}); }
+  function fmtPct(n) { return parseFloat(n||0).toFixed(1) + "%"; }
+  function fmtDate(d) { if(!d) return ""; var p=d.split("-"); return p[2]+"/"+p[1]+"/"+p[0]; }
+  function navTo(mod) { var el=document.querySelector("[data-module=\""+mod+"\"]"); if(el) el.click(); }
+
+  // Greeting
+  var h = new Date().getHours();
+  var greet = h<12 ? "Bom dia" : h<18 ? "Boa tarde" : "Boa noite";
+  var emoji = h<12 ? "&#128161;" : h<18 ? "&#9728;&#65039;" : "&#127769;";
+  var hoje = new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+
+  // Load all data in parallel
+  var [fazRes, usrRes, talRes, safRes, lancRes, insRes, fechRes, vendRes] = await Promise.all([
+    sb.from("fazendas").select("id,nome,cidade,estado,area_total_ha,certificada").eq("ativo",true).order("nome"),
+    sb.from("usuarios").select("id").eq("ativo",true),
+    sb.from("talhoes").select("id,nome,area_ha,fazenda_id").eq("ativo",true),
+    sb.from("safras").select("id,nome,cultura,ano_agricola,status,fazenda_id,producao_sc,produtividade_sc_ha,custo_total,receita_total").order("criado_em",{ascending:false}),
+    sb.from("lancamentos").select("id,tipo,custo_total,data_lancamento,descricao,status").eq("status","confirmado").order("data_lancamento",{ascending:false}).limit(8),
+    sb.from("insumos").select("id,nome,estoque_atual,estoque_minimo").eq("ativo",true),
+    sb.from("fechamento_safra").select("*,safras(nome,cultura,ano_agricola),fazendas(nome)").order("criado_em",{ascending:false}).limit(5),
+    sb.from("vendas_graos").select("id,quantidade_sc,preco_saca,status,cultura,safra_id,fazenda_id").order("criado_em",{ascending:false}).limit(20)
+  ]);
+
+  var fazendas = (fazRes.data || []);
+  var usuarios = (usrRes.data || []);
+  var talhoes = (talRes.data || []);
+  var safras = (safRes.data || []);
+  var lancs = (lancRes.data || []);
+  var insumos = (insRes.data || []);
+  var fechamentos = (fechRes.data || []);
+  var vendas = (vendRes.data || []);
+
+  // Compute KPIs
+  var safrasAbertas = safras.filter(function(s){ return s.status==="aberto"; });
+  var insBaixos = insumos.filter(function(i){ return parseFloat(i.estoque_atual||0) < parseFloat(i.estoque_minimo||0); });
+  var totalDesp = lancs.filter(function(l){ return l.tipo==="despesa"; }).reduce(function(a,l){ return a+parseFloat(l.custo_total||0); },0);
+  var totalRec = lancs.filter(function(l){ return l.tipo==="receita"; }).reduce(function(a,l){ return a+parseFloat(l.custo_total||0); },0);
+
+  // Fechamento KPIs
+  var ultimoFech = fechamentos[0] || null;
+  var roiUlt = 0;
+  if (ultimoFech && parseFloat(ultimoFech.custo_total||0) > 0) {
+    roiUlt = ((parseFloat(ultimoFech.receita_vendas||0) - parseFloat(ultimoFech.custo_total||0)) / parseFloat(ultimoFech.custo_total||0)) * 100;
   }
+
+  // Vendas KPIs
+  var totalContratado = vendas.reduce(function(a,v){ return a+parseFloat(v.quantidade_sc||0); },0);
+  var vendaAberta = vendas.filter(function(v){ return v.status==="aberto"||v.status==="parcialmente_entregue"; }).length;
+  var receitaVendas = vendas.reduce(function(a,v){ return a+parseFloat(v.quantidade_sc||0)*parseFloat(v.preco_saca||0); },0);
+
+  // Dicas do agronomo
+  var dicas = [
+    "&#127807; Monitoramento frequente de pragas reduz custos de controle em ate 40%.",
+    "&#128167; Analise de solo a cada 2 anos garante adubacao mais precisa e economica.",
+    "&#127775; Semeadura na epoca correta pode aumentar a produtividade em 15-20%.",
+    "&#9748; A irrigacao suplementar no periodo critico valoriza 5 sc/ha em media.",
+    "&#128300; Variedades resistentes reduzem custo de fungicidas em ate 30%.",
+    "&#127822; Integrar lavoura-pecuaria-floresta aumenta resiliencia do sistema.",
+    "&#128209; Registro detalhado de lancamentos permite identificar gargalos de custo.",
+    "&#9881; Manutencao preventiva de maquinas reduz paradas em ate 60% no plantio."
+  ];
+  var dica = dicas[new Date().getDate() % dicas.length];
+
+  // Weather
+  var fazPrinc = fazendas[0];
+  var cidadeClima = fazPrinc ? (fazPrinc.cidade||"Brasil") : "Brasil";
+  var climaHtml = "<div style=\"color:#888;font-size:13px\">Carregando clima...</div>";
+  try {
+    var wResp = await fetch("https://wttr.in/"+encodeURIComponent(cidadeClima)+"?format=j1");
+    var wData = await wResp.json();
+    var cur = wData.current_condition[0];
+    var temp = cur.temp_C;
+    var desc = cur.lang_pt ? cur.lang_pt[0].value : cur.weatherDesc[0].value;
+    var hum = cur.humidity;
+    var wind = cur.windspeedKmph;
+    var wIcon = parseInt(cur.weatherCode)<=113 ? "&#9728;&#65039;" : parseInt(cur.weatherCode)<=176 ? "&#9925;" : "&#127783;&#65039;";
+    climaHtml = "<div style=\"display:flex;align-items:center;gap:12px\">"
+      + "<div style=\"font-size:36px\">"+wIcon+"</div>"
+      + "<div>"
+      + "<div style=\"font-size:28px;font-weight:800;color:#fff\">"+temp+"&deg;C</div>"
+      + "<div style=\"font-size:12px;color:rgba(255,255,255,0.8)\">"+desc+"</div>"
+      + "<div style=\"font-size:11px;color:rgba(255,255,255,0.7)\">&#128167; "+hum+"% &nbsp; &#127788; "+wind+" km/h &nbsp; &#128205; "+cidadeClima+"</div>"
+      + "</div></div>";
+  } catch(e) { climaHtml = "<div style=\"color:rgba(255,255,255,0.6);font-size:12px\">Clima indisponivel</div>"; }
+
+  var html = "";
+  html += "<div style=\"max-width:1280px;margin:0 auto;padding:0\">"
+
+  // HERO BANNER
+  html += "<div style=\"background:linear-gradient(135deg,#1a4b1a 0%,#2d7d32 60%,#1565c0 100%);border-radius:16px;padding:24px 28px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center\">"
+  html += "<div>"
+  html += "<div style=\"font-size:11px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.6);margin-bottom:4px\">JA AGRO INTELLIGENCE</div>"
+  html += "<div style=\"font-size:28px;font-weight:800;color:#fff\">"+greet+", Produtor! "+emoji+"</div>"
+  html += "<div style=\"font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px\">"+hoje+"</div>"
+  html += "</div>"
+  html += "<div style=\"background:rgba(255,255,255,0.12);border-radius:12px;padding:14px 20px;min-width:220px;text-align:left\">"
+  html += climaHtml
+  html += "</div>"
+  html += "</div>"
+
+  // 5 KPI CARDS
+  html += "<div style=\"display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px\">"
+  function kpiCard(label, val, sub, color) {
+    return "<div style=\"background:#fff;border-radius:12px;padding:16px 14px;border-left:4px solid "+color+";box-shadow:0 1px 4px rgba(0,0,0,0.07)\">"
+      +"<div style=\"font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#888\">"+label+"</div>"
+      +"<div style=\"font-size:24px;font-weight:800;color:"+color+";margin:4px 0\">"+val+"</div>"
+      +"<div style=\"font-size:11px;color:#999\">"+sub+"</div>"
+      +"</div>";
+  }
+  html += kpiCard("Fazendas", fazendas.length, "Ativas no sistema", "#2d7d32");
+  html += kpiCard("Usuarios", usuarios.length, "Produtores e equipe", "#1565c0");
+  html += kpiCard("Talhoes", talhoes.length, "Total cadastrados", "#e65100");
+  html += kpiCard("Safras Abertas", safrasAbertas.length, "Em andamento", "#7b1fa2");
+  html += kpiCard("Estoque Critico", insBaixos.length, "Insumos abaixo minimo", insBaixos.length>0?"#c62828":"#2d7d32");
+  html += "</div>"
+
+  // ROW 2: ROI CARD (full width) + Vendas Card
+  html += "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px\">"
+
+  // ROI CARD
+  html += "<div style=\"background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden\">"
+  html += "<div style=\"padding:14px 16px;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center\">"
+  html += "<h3 style=\"margin:0;font-size:14px;color:#333\">&#128200; Fechamentos de Safra</h3>"
+  html += "<a href=\"#\" onclick=\"event.preventDefault();document.querySelector('[data-module=fechamento-safra]').click();\" style=\"font-size:12px;color:#2d7d32;text-decoration:none\">Ver todos &rarr;</a>"
+  html += "</div>"
+  if (fechamentos.length === 0) {
+    html += "<div style=\"padding:32px;text-align:center;color:#bbb\">"
+    html += "<div style=\"font-size:32px;margin-bottom:8px\">&#128200;</div>"
+    html += "<div style=\"font-size:13px\">Nenhum fechamento realizado</div>"
+    html += "<button onclick=\"document.querySelector('[data-module=fechamento-safra]').click();\" style=\"margin-top:12px;background:#2d7d32;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:12px\">Iniciar Fechamento</button>"
+    html += "</div>"
+  } else {
+    // Last fechamento ROI highlight
+    var roiCor = roiUlt >= 0 ? "#2d7d32" : "#c62828";
+    var roiBg = roiUlt >= 0 ? "#e8f5e9" : "#fce4ec";
+    html += "<div style=\"padding:12px 16px;background:"+roiBg+";border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px\">"
+    html += "<div style=\"flex:1\">"
+    html += "<div style=\"font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px\">Ultimo Fechamento ROI</div>"
+    html += "<div style=\"font-size:28px;font-weight:900;color:"+roiCor+"\">"+fmtPct(roiUlt)+"</div>"
+    html += "<div style=\"font-size:11px;color:#888\">"+(ultimoFech.safras?ultimoFech.safras.nome:"-")+" &bull; "+(ultimoFech.fazendas?ultimoFech.fazendas.nome:"-")+"</div>"
+    html += "</div>"
+    html += "<div style=\"text-align:right;min-width:120px\">"
+    html += "<div style=\"font-size:11px;color:#888\">Resultado</div>"
+    html += "<div style=\"font-size:16px;font-weight:700;color:"+roiCor+"\">"+fmtBrl(ultimoFech.resultado_liquido)+"</div>"
+    html += "<div style=\"font-size:11px;color:#888;margin-top:4px\">Prod: "+fmtSc(ultimoFech.produtividade_sc_ha)+" sc/ha</div>"
+    html += "</div>"
+    html += "</div>"
+    // List of recent fechamentos
+    fechamentos.slice(0,4).forEach(function(f){
+      var saldo = parseFloat(f.resultado_liquido||0);
+      var roi = parseFloat(f.custo_total||0)>0 ? ((parseFloat(f.receita_vendas||0)-parseFloat(f.custo_total||0))/parseFloat(f.custo_total||0)*100) : 0;
+      var cor = saldo >= 0 ? "#2d7d32" : "#c62828";
+      var sfNome = f.safras ? f.safras.nome : "-";
+      var fzNome = f.fazendas ? f.fazendas.nome : "-";
+      html += "<div style=\"padding:10px 16px;border-bottom:1px solid #f9f9f9;display:flex;justify-content:space-between;align-items:center\">"
+      html += "<div>"
+      html += "<div style=\"font-size:13px;font-weight:600;color:#333\">"+sfNome+"</div>"
+      html += "<div style=\"font-size:11px;color:#888\">"+fzNome+" &bull; "+fmtDate(f.data_fechamento)+"</div>"
+      html += "</div>"
+      html += "<div style=\"text-align:right\">"
+      html += "<div style=\"font-size:13px;font-weight:700;color:"+cor+"\">ROI: "+roi.toFixed(1)+"%</div>"
+      html += "<div style=\"font-size:11px;color:#888\">"+fmtBrl(saldo)+"</div>"
+      html += "</div>"
+      html += "</div>"
+    });
+  }
+  html += "</div>"
+
+  // VENDAS CARD
+  html += "<div style=\"background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden\">"
+  html += "<div style=\"padding:14px 16px;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center\">"
+  html += "<h3 style=\"margin:0;font-size:14px;color:#333\">&#127807; Vendas de Graos</h3>"
+  html += "<a href=\"#\" onclick=\"event.preventDefault();document.querySelector('[data-module=vendas-graos]').click();\" style=\"font-size:12px;color:#2d7d32;text-decoration:none\">Gerenciar &rarr;</a>"
+  html += "</div>"
+  if (vendas.length === 0) {
+    html += "<div style=\"padding:32px;text-align:center;color:#bbb\">"
+    html += "<div style=\"font-size:32px;margin-bottom:8px\">&#127807;</div>"
+    html += "<div style=\"font-size:13px\">Nenhum contrato de venda</div>"
+    html += "<button onclick=\"document.querySelector('[data-module=vendas-graos]').click();\" style=\"margin-top:12px;background:#1565c0;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:12px\">Cadastrar Venda</button>"
+    html += "</div>"
+  } else {
+    // Summary bar
+    html += "<div style=\"padding:12px 16px;background:#e3f2fd;border-bottom:1px solid #f5f5f5\">"
+    html += "<div style=\"display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center\">"
+    html += "<div><div style=\"font-size:10px;color:#888\">Contratos</div><div style=\"font-size:20px;font-weight:700;color:#1565c0\">"+vendas.length+"</div></div>"
+    html += "<div><div style=\"font-size:10px;color:#888\">Contratado</div><div style=\"font-size:18px;font-weight:700;color:#2d7d32\">"+fmtSc(totalContratado)+" sc</div></div>"
+    html += "<div><div style=\"font-size:10px;color:#888\">Receita Contratada</div><div style=\"font-size:14px;font-weight:700;color:#7b1fa2\">"+fmtBrl(receitaVendas)+"</div></div>"
+    html += "</div>"
+    html += "</div>"
+    // Contracts list
+    var statusMap = {aberto:"#fff3e0|#e65100|Aberto",parcialmente_entregue:"#e3f2fd|#1565c0|Em Entrega",entregue:"#e8f5e9|#2d7d32|Entregue",cancelado:"#fce4ec|#c62828|Cancelado"};
+    vendas.slice(0,5).forEach(function(v){
+      var sm = (statusMap[v.status]||"#f5f5f5|#666|Pendente").split("|");
+      html += "<div style=\"padding:10px 16px;border-bottom:1px solid #f9f9f9;display:flex;justify-content:space-between;align-items:center\">"
+      html += "<div><div style=\"font-size:13px;font-weight:600\">"+v.cultura+"</div>"
+      html += "<div style=\"font-size:11px;color:#888\">"+fmtSc(v.quantidade_sc)+" sc &bull; "+fmtBrl(v.preco_saca)+"/sc</div></div>"
+      html += "<span style=\"background:"+sm[0]+";color:"+sm[1]+";padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap\">"+sm[2]+"</span>"
+      html += "</div>"
+    });
+    if (vendaAberta > 0) {
+      html += "<div style=\"padding:8px 16px;background:#fff8e1;font-size:12px;color:#e65100\">&#9888; "+vendaAberta+" contrato(s) com saldo a entregar</div>"
+    }
+  }
+  html += "</div>"
+  html += "</div>"
+
+  // ROW 3: Saude Safras + Semaforo Estoque
+  html += "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px\">"
+
+  // SAUDE DAS SAFRAS
+  html += "<div style=\"background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden\">"
+  html += "<div style=\"padding:14px 16px;border-bottom:1px solid #f5f5f5\"><h3 style=\"margin:0;font-size:14px;color:#333\">&#127807; Saude das Safras</h3></div>"
+  if (safrasAbertas.length === 0) {
+    html += "<div style=\"padding:24px;text-align:center;color:#bbb;font-size:13px\">Nenhuma safra em andamento</div>"
+  } else {
+    safrasAbertas.forEach(function(s) {
+      var fz = fazendas.find(function(f){ return f.id===s.fazenda_id; });
+      var prodSc = parseFloat(s.produtividade_sc_ha||0);
+      var saudeCor = prodSc>60?"#2d7d32":prodSc>45?"#e65100":"#c62828";
+      var saudeIcon = prodSc>60?"&#128994;":prodSc>45?"&#128993;":"&#128308;";
+      html += "<div style=\"padding:12px 16px;border-bottom:1px solid #f9f9f9\">"
+      html += "<div style=\"display:flex;justify-content:space-between;align-items:center\">"
+      html += "<div><div style=\"font-size:13px;font-weight:600\">"+s.nome+"</div>"
+      html += "<div style=\"font-size:11px;color:#888\">"+s.cultura+" "+s.ano_agricola+(fz?" &bull; "+fz.nome:"")+"</div></div>"
+      html += "<span style=\"font-size:18px\">"+saudeIcon+"</span>"
+      html += "</div>"
+      html += "</div>"
+    });
+  }
+  html += "</div>"
+
+  // SEMAFORO ESTOQUE
+  html += "<div style=\"background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden\">"
+  html += "<div style=\"padding:14px 16px;border-bottom:1px solid #f5f5f5\"><h3 style=\"margin:0;font-size:14px;color:#333\">&#128994; Semaforo de Estoque</h3></div>"
+  insumos.slice(0,6).forEach(function(ins){
+    var atual = parseFloat(ins.estoque_atual||0);
+    var min = parseFloat(ins.estoque_minimo||0);
+    var ok = atual >= min;
+    var pct = min > 0 ? Math.min(100, (atual/min)*100) : 100;
+    var semCor = ok ? "#2d7d32" : "#c62828";
+    var semIcon = ok ? "&#128994;" : "&#128308;";
+    html += "<div style=\"padding:10px 16px;border-bottom:1px solid #f9f9f9\">"
+    html += "<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:4px\">"
+    html += "<span style=\"font-size:12px;color:#444;font-weight:500\">"+semIcon+" "+ins.nome+"</span>"
+    html += "<span style=\"font-size:11px;color:"+semCor+";font-weight:600\">"+atual+" / "+min+"</span>"
+    html += "</div>"
+    html += "<div style=\"background:#f0f0f0;border-radius:3px;height:5px\"><div style=\"background:"+semCor+";height:5px;border-radius:3px;width:"+pct.toFixed(0)+"%\"></div></div>"
+    html += "</div>"
+  });
+  html += "</div>"
+  html += "</div>"
+
+  // ROW 4: DICA DO AGRONOMO + ACOES RAPIDAS
+  html += "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px\">"
+
+  // DICA DO AGRONOMO
+  html += "<div style=\"background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06)\">"
+  html += "<div style=\"font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#2d7d32;font-weight:700;margin-bottom:8px\">&#127807; Dica do Agronomo</div>"
+  html += "<div style=\"font-size:14px;color:#2d7d32;font-weight:600;line-height:1.5\">"+dica+"</div>"
+  html += "</div>"
+
+  // ACOES RAPIDAS
+  html += "<div style=\"background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.07)\">"
+  html += "<div style=\"font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#888;font-weight:700;margin-bottom:12px\">&#9889; Acoes Rapidas</div>"
+  html += "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px\">"
+  var acoes = [
+    {label:"+ Lancamento",mod:"lancamentos",bg:"#2d7d32"},
+    {label:"Nova Venda",mod:"vendas-graos",bg:"#1565c0"},
+    {label:"Fechar Safra",mod:"fechamento-safra",bg:"#7b1fa2"},
+    {label:"Dashboard",mod:"dashboard",bg:"#e65100"},
+    {label:"Insumos",mod:"insumos",bg:"#795548"},
+    {label:"Certificacao",mod:"certificacao",bg:"#00897b"}
+  ];
+  acoes.forEach(function(a){
+    html += "<button onclick=\"document.querySelector('[data-module="+a.mod+"]').click();\" style=\"background:"+a.bg+";color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-size:12px;font-weight:600\">"+a.label+"</button>"
+  });
+  html += "</div></div>"
+  html += "</div>"
+
+  // ROW 5: IA RECOMMENDATIONS
+  html += "<div style=\"background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.07);margin-bottom:20px\">"
+  html += "<div style=\"font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#888;font-weight:700;margin-bottom:14px\">&#129302; Inteligencia Agronomica</div>"
+  html += "<div style=\"display:grid;grid-template-columns:repeat(3,1fr);gap:12px\">"
+
+  // IA Agronomica
+  var iaAgro = [];
+  if (safrasAbertas.length === 0) iaAgro.push("Nenhuma safra ativa. Cadastre uma safra para recomendacoes personalizadas.");
+  else iaAgro.push("Safra "+safrasAbertas[0].nome+" em andamento. Monitore pragas e doencas semanalmente.");
+  if (insBaixos.length > 0) iaAgro.push(insBaixos.length+" insumo(s) abaixo do minimo. Reabastecer com urgencia para nao comprometer o ciclo.");
+  else iaAgro.push("Estoque de insumos adequado. Bom momento para planejar compras da proxima safra.");
+
+  // IA Gerencial
+  var iaGer = [];
+  if (ultimoFech) { iaGer.push("Ultimo fechamento: ROI de "+fmtPct(roiUlt)+". "+(roiUlt>=15?"Resultado excelente!":roiUlt>=0?"Margem apertada, revisar custos.":"Resultado negativo. Acoes corretivas necessarias.")); }
+  else iaGer.push("Realize o primeiro Fechamento de Safra para obter analise gerencial completa com ROI e margens.");
+  iaGer.push(fazendas.length+" fazenda(s) ativa(s). "+fazendas.filter(function(f){ return f.certificada; }).length+" com certificacao organica/sustentavel.");
+
+  // IA Financeira
+  var iaFin = [];
+  if (vendaAberta > 0) iaFin.push(vendaAberta+" contrato(s) com saldo a entregar. Acompanhe prazo de entrega para evitar multas.");
+  else if (vendas.length > 0) iaFin.push("Todos contratos de venda entregues. Receita de "+fmtBrl(receitaVendas)+" contratada.");
+  else iaFin.push("Sem contratos de venda cadastrados. Cadastre vendas para rastrear receita e fluxo de caixa.");
+  iaFin.push("Lancamentos recentes: "+lancs.length+" registros. Mantenha lancamentos atualizados para fechamento preciso.");
+
+  function iaCard(emoji, titulo, msgs, cor) {
+    var o = "<div style=\"background:#f8f9fa;border-radius:10px;padding:14px;border-left:3px solid "+cor+"\">";
+    o += "<div style=\"font-size:18px;margin-bottom:6px\">"+emoji+"</div>";
+    o += "<div style=\"font-size:11px;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px\">"+titulo+"</div>";
+    msgs.forEach(function(m){ o += "<div style=\"font-size:12px;color:#555;margin-bottom:6px;line-height:1.4\">"+m+"</div>"; });
+    o += "</div>";
+    return o;
+  }
+  html += iaCard("&#127807;","Agronomica",iaAgro,"#2d7d32");
+  html += iaCard("&#128200;","Gerencial",iaGer,"#1565c0");
+  html += iaCard("&#128176;","Financeira",iaFin,"#7b1fa2");
+  html += "</div></div>"
+
+  // ROW 6: RESUMO FAZENDAS + ULTIMOS LANCAMENTOS
+  html += "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px\">"
+
+  // FAZENDAS
+  html += "<div style=\"background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden\">"
+  html += "<div style=\"padding:14px 16px;border-bottom:1px solid #f5f5f5\"><h3 style=\"margin:0;font-size:14px;color:#333\">&#127968; Minhas Fazendas</h3></div>"
+  fazendas.slice(0,5).forEach(function(f){
+    html += "<div style=\"padding:10px 16px;border-bottom:1px solid #f9f9f9;display:flex;justify-content:space-between;align-items:center\">"
+    html += "<div><div style=\"font-size:13px;font-weight:600;color:#333\">"+f.nome+(f.certificada?" &#127985;":"")+"</div>"
+    html += "<div style=\"font-size:11px;color:#888\">"+(f.cidade||"")+","+(f.estado||"")+" &bull; "+(f.area_total_ha||0)+" ha</div></div>"
+    html += "<span style=\"font-size:18px\">&#127968;</span>"
+    html += "</div>"
+  });
+  html += "</div>"
+
+  // ULTIMOS LANCAMENTOS
+  html += "<div style=\"background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden\">"
+  html += "<div style=\"padding:14px 16px;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center\">"
+  html += "<h3 style=\"margin:0;font-size:14px;color:#333\">&#128203; Ultimos Lancamentos</h3>"
+  html += "<a href=\"#\" onclick=\"event.preventDefault();document.querySelector('[data-module=lancamentos]').click();\" style=\"font-size:12px;color:#2d7d32;text-decoration:none\">Ver todos &rarr;</a>"
+  html += "</div>"
+  if (lancs.length === 0) {
+    html += "<div style=\"padding:24px;text-align:center;color:#bbb;font-size:13px\">Nenhum lancamento recente</div>"
+  } else {
+    lancs.forEach(function(l){
+      var isDespesa = l.tipo === "despesa";
+      var cor = isDespesa ? "#c62828" : "#2d7d32";
+      html += "<div style=\"padding:8px 16px;border-bottom:1px solid #f9f9f9;display:flex;justify-content:space-between;align-items:center\">"
+      html += "<div><div style=\"font-size:12px;font-weight:500;color:#333\">"+( l.descricao||l.tipo )+"</div>"
+      html += "<div style=\"font-size:11px;color:#888\">"+fmtDate(l.data_lancamento)+"</div></div>"
+      html += "<div style=\"font-size:13px;font-weight:600;color:"+cor+"\">"+( isDespesa?"-":"+" )+fmtBrl(l.custo_total)+"</div>"
+      html += "</div>"
+    });
+  }
+  html += "</div>"
+  html += "</div>"
+
+  // FOOTER
+  var ts = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  html += "<div style=\"text-align:center;padding:12px;color:#bbb;font-size:11px;margin-bottom:8px\">"
+  html += "&#9201; Atualizado em "+ts+" &bull; JA Agro Intelligence v2.0"
+  html += "</div>"
+
+  html += "</div>"
+
+  c.innerHTML = "<div style=\"padding:16px\">" + html + "</div>";
 };
-window.AdminHome = window.module_home;
+window.module_home();
