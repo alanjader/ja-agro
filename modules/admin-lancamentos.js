@@ -1,277 +1,437 @@
-// ============================================================
-// JA AGRO — Admin Module: Lancamentos
-// admin-lancamentos.js | Schema real do banco
-// ============================================================
 window.module_lancamentos = async function() {
-  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const fmt = n => n != null ? Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '--';
-  const fmtDate = d => d ? new Date(d+'T00:00:00').toLocaleDateString('pt-BR') : '--';
+  const el = document.getElementById("module-content");
+  if(!el) return;
 
-  let _lancamentos = [], _fazendas = [], _safras = [], _talhoes = [], _operadores = [], _insumos = [], _maquinas = [];
-  let _search = '', _filtroFaz = '', _filtroTipo = '', _filtroSafra = '';
+  // ── STATE ──────────────────────────────────────────────────────
+  let _fazendas=[], _safras=[], _talhoes=[], _operadores=[], _insumos=[], _maquinas=[], _lancamentos=[];
+  let _filtFaz="", _filtSafra="", _filtTipo="", _filtBusca="";
 
-  async function render() {
-    setLoading('mainContent');
-    try {
-      const [
-        { data: fazendas },
-        { data: safras },
-        { data: talhoes },
-        { data: operadores },
-        { data: insumos },
-        { data: maquinas },
-        { data: lancamentos, error }
-      ] = await Promise.all([
-        sb.from('fazendas').select('id,nome,certificada,tipo_certificacao').eq('ativo',true).order('nome'),
-        sb.from('safras').select('id,nome,fazenda_id').order('nome'),
-        sb.from('talhoes').select('id,nome,fazenda_id,segue_certificacao').eq('ativo',true).order('nome'),
-        sb.from('operadores').select('id,nome').eq('ativo',true).order('nome'),
-        sb.from('insumos').select('id,nome,unidade,certificacao_permitida').eq('ativo',true).order('nome'),
-        sb.from('maquinas').select('id,nome').eq('ativo',true).order('nome'),
-        sb.from('lancamentos').select('*, fazendas(nome), safras(nome), talhoes(nome), operadores(nome), insumos(nome,unidade), maquinas(nome)')
-          .order('data_lancamento', { ascending: false }).order('criado_em', { ascending: false }).limit(500)
-      ]);
-      if(error) throw error;
-      _fazendas = fazendas || [];
-      _safras = safras || [];
-      _talhoes = talhoes || [];
-      _operadores = operadores || [];
-      _insumos = insumos || [];
-      _maquinas = maquinas || [];
-      _lancamentos = lancamentos || [];
-      renderUI();
-    } catch(e) {
-      document.getElementById('mainContent').innerHTML =
-        '<div class="empty-state"><p style="color:var(--danger)">Erro ao carregar lancamentos: '+esc(e.message)+'</p></div>';
-    }
+  // ── HELPERS ────────────────────────────────────────────────────
+  function esc(v){ return v ? String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;") : ""; }
+  function fmt(v){ return (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
+  function fmtN(v,d){ return (v||0).toLocaleString("pt-BR",{minimumFractionDigits:d||0,maximumFractionDigits:d||0}); }
+  function today(){ return new Date().toISOString().slice(0,10); }
+
+  // ── LOAD DATA ──────────────────────────────────────────────────
+  async function loadData(){
+    const [fa,sa,ta,op,ins,maq,lan] = await Promise.all([
+      sb.from("fazendas").select("id,nome").order("nome"),
+      sb.from("safras").select("id,nome,fazenda_id,status").order("nome"),
+      sb.from("talhoes").select("id,nome,fazenda_id,certificacao_id").order("nome"),
+      sb.from("operadores").select("id,nome,fazenda_id").order("nome"),
+      sb.from("insumos").select("id,nome,unidade,preco_unitario,certificacao_permitida").order("nome"),
+      sb.from("maquinas").select("id,nome,fazenda_id,tipo,custo_hora,horimetro_atual").order("nome"),
+      sb.from("lancamentos").select("*").order("data_lancamento",{ascending:false}).limit(200)
+    ]);
+    _fazendas  = fa.data||[];
+    _safras    = sa.data||[];
+    _talhoes   = ta.data||[];
+    _operadores= op.data||[];
+    _insumos   = ins.data||[];
+    _maquinas  = maq.data||[];
+    _lancamentos= lan.data||[];
   }
 
-  function renderUI() {
-    const vis = filtrados();
-    const stats = calcStats(vis);
-    const fazOpts = '<option value="">Todas as fazendas</option>'+_fazendas.map(function(f){
-      return '<option value="'+f.id+'"'+(_filtroFaz===f.id?' selected':'')+'>'+esc(f.nome)+'</option>';
-    }).join('');
-    const safraOpts = '<option value="">Todas as safras</option>'+_safras.map(function(s){
-      return '<option value="'+s.id+'"'+(_filtroSafra===s.id?' selected':'')+'>'+esc(s.nome)+'</option>';
-    }).join('');
-
-    document.getElementById('mainContent').innerHTML =
-      '<div class="page-header topbar-content">'+
-      '<div class="topbar-title"><span>Lancamentos</span></div>'+
-      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
-      '<select class="search-input" id="filtFazLanc" onchange="window._lanc_setFaz(this.value)" style="width:160px">'+fazOpts+'</select>'+
-      '<select class="search-input" id="filtSafraLanc" onchange="window._lanc_setSafra(this.value)" style="width:160px">'+safraOpts+'</select>'+
-      '<select class="search-input" id="filtTipoLanc" onchange="window._lanc_setTipo(this.value)" style="width:130px">'+
-      '<option value="">Todos os tipos</option>'+
-      '<option value="despesa"'+(_filtroTipo==='despesa'?' selected':'')+'>Despesa</option>'+
-      '<option value="receita"'+(_filtroTipo==='receita'?' selected':'')+'>Receita</option>'+
-      '</select>'+
-      '<input class="search-input" id="srchLanc" placeholder="Buscar..." value="'+esc(_search)+'" oninput="window._lanc_search(this.value)" style="width:160px"/>'+
-      '<button class="topbar-btn btn-primary" onclick="window._lanc_novo()">+ Novo Lancamento</button>'+
-      '</div></div>'+
-      '<div class="stat-row" style="display:flex;gap:12px;flex-wrap:wrap;padding:16px 20px 0">'+
-      '<div class="stat-card green"><div class="stat-card-val">'+vis.length+'</div><div class="stat-card-lbl">Lancamentos</div></div>'+
-      '<div class="stat-card blue"><div class="stat-card-val">R$ '+fmt(stats.total_custo)+'</div><div class="stat-card-lbl">Total Custos</div></div>'+
-      '</div>'+
-      '<div class="table-wrap" style="margin:16px 20px">'+
-      '<table class="data-table"><thead><tr>'+
-      '<th>Data</th><th>Tipo</th><th>Descricao</th><th>Insumo/Maquina</th><th>Fazenda</th><th>Safra</th><th>Qtd</th><th>Custo (R$)</th><th>Acoes</th>'+
-      '</tr></thead><tbody id="lancBody">'+
-      renderRows(vis)+
-      '</tbody></table></div>';
+  // ── STATS ─────────────────────────────────────────────────────
+  function calcStats(){
+    const items = filtrados();
+    const totalDespesas = items.filter(i=>i.tipo==="despesa").reduce((s,i)=>s+(i.custo_total||0),0);
+    const totalReceitas = items.filter(i=>i.tipo==="receita").reduce((s,i)=>s+(i.custo_total||0),0);
+    const totalMaq = items.filter(i=>i.maquina_id).reduce((s,i)=>s+(i.custo_total||0),0);
+    const totalHoras = items.filter(i=>i.horas_trabalhadas).reduce((s,i)=>s+(i.horas_trabalhadas||0),0);
+    return {totalDespesas, totalReceitas, totalMaq, totalHoras, qtd:items.length};
   }
 
-  function calcStats(vis) {
-    var total = 0;
-    vis.forEach(function(l) { total += Number(l.custo_total||0); });
-    return { total_custo: total };
-  }
-
-  function filtrados() {
-    return _lancamentos.filter(function(l) {
-      const ok1 = !_filtroFaz || l.fazenda_id === _filtroFaz;
-      const ok2 = !_filtroTipo || l.tipo === _filtroTipo;
-      const ok3 = !_filtroSafra || l.safra_id === _filtroSafra;
-      const ok4 = !_search || (l.descricao||'').toLowerCase().includes(_search.toLowerCase());
-      return ok1 && ok2 && ok3 && ok4;
+  function filtrados(){
+    return _lancamentos.filter(function(l){
+      if(_filtFaz && l.fazenda_id!==_filtFaz) return false;
+      if(_filtSafra && l.safra_id!==_filtSafra) return false;
+      if(_filtTipo && l.tipo!==_filtTipo) return false;
+      if(_filtBusca){
+        const q=_filtBusca.toLowerCase();
+        const desc=(l.descricao||"").toLowerCase();
+        const nf=(l.nota_fiscal||"").toLowerCase();
+        if(!desc.includes(q)&&!nf.includes(q)) return false;
+      }
+      return true;
     });
   }
 
-  function renderRows(vis) {
-    if(!vis.length) return '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:32px">Nenhum lancamento encontrado</td></tr>';
-    return vis.map(function(l) {
-      const isCusto = l.tipo === 'custo';
-      return '<tr>'+
-      '<td>'+fmtDate(l.data_lancamento)+'</td>'+
-      '<td>'+(isCusto ? '<span class="badge" style="background:#fee2e2;color:#991b1b">Despesa</span>' : '<span class="badge badge-green">Receita</span>')+'</td>'+
-      '<td>'+esc(l.descricao||'--')+'</td>'+
-      '<td style="font-size:12px">'+esc((l.insumos&&l.insumos.nome)||(l.maquinas&&l.maquinas.nome)||'--')+'</td>'+
-      '<td style="font-size:12px">'+esc((l.fazendas&&l.fazendas.nome)||'--')+'</td>'+
-      '<td style="font-size:12px">'+esc((l.safras&&l.safras.nome)||'--')+'</td>'+
-      '<td>'+esc(String(l.quantidade||'--'))+' '+esc(l.unidade||'')+'</td>'+
-      '<td style="font-weight:600">'+fmt(l.custo_total)+'</td>'+
-      '<td>'+
-      '<button class="btn-icon" onclick="window._lanc_edit(this)" data-id="'+l.id+'">Editar</button> '+
-      '<button class="btn-icon" onclick="window._lanc_del(this)" data-id="'+l.id+'">Excluir</button>'+
-      '</td></tr>';
-    }).join('');
+  // ── FILTER HANDLERS ───────────────────────────────────────────
+  window._lanc_setFaz = function(v){
+    _filtFaz=v; _filtSafra="";
+    // Update safra filter options dynamically
+    var safSel = document.getElementById("filtSafraLanc");
+    if(safSel){
+      var filtered = v ? _safras.filter(function(s){return s.fazenda_id===v;}) : _safras;
+      safSel.innerHTML = "<option value=\"\">Todas safras</option>" + filtered.map(function(s){return "<option value=\""+s.id+"\">"+esc(s.nome)+"</option>";}).join("");
+    }
+    renderRows();
+  };
+  window._lanc_setSafra = function(v){ _filtSafra=v; renderRows(); };
+  window._lanc_setTipo = function(v){ _filtTipo=v; renderRows(); };
+  window._lanc_setBusca = function(v){ _filtBusca=v; renderRows(); };
+
+  // ── RENDER UI ─────────────────────────────────────────────────
+  function renderUI(){
+    const st = calcStats();
+    const fazOpts = "<option value=\"\">Todas fazendas</option>" + _fazendas.map(function(f){ return "<option value=\""+f.id+"\">"+esc(f.nome)+"</option>"; }).join("");
+    const safraOpts = "<option value=\"\">Todas safras</option>" + _safras.map(function(s){ return "<option value=\""+s.id+"\">"+esc(s.nome)+"</option>"; }).join("");
+    el.innerHTML =
+      "<div style=\"padding:24px;max-width:1200px\">"+
+      "<div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:20px\">"+
+      "<div><h2 style=\"margin:0;color:var(--txt)\">\uD83D\uDCCB Lan\u00E7amentos</h2><p style=\"margin:4px 0 0;color:var(--txt-s);font-size:14px\">Registro de custos, receitas e opera\u00E7\u00F5es</p></div>"+
+      "<button class=\"btn-primary\" onclick=\"window._lanc_abrirForm(null)\">+ Novo Lan\u00E7amento</button>"+
+      "</div>"+
+      "<div style=\"display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px\">"+
+      "<div class=\"stat-card\" style=\"border-left:4px solid #ef4444\">"+
+      "<div class=\"stat-value\" style=\"color:#ef4444\">"+fmt(st.totalDespesas)+"</div>"+
+      "<div class=\"stat-label\">Total Despesas</div></div>"+
+      "<div class=\"stat-card\" style=\"border-left:4px solid #22c55e\">"+
+      "<div class=\"stat-value\" style=\"color:#22c55e\">"+fmt(st.totalReceitas)+"</div>"+
+      "<div class=\"stat-label\">Total Receitas</div></div>"+
+      "<div class=\"stat-card\" style=\"border-left:4px solid #f59e0b\">"+
+      "<div class=\"stat-value\" style=\"color:#f59e0b\">"+fmt(st.totalMaq)+"</div>"+
+      "<div class=\"stat-label\" style=\"font-size:11px\">Custo Maquin\u00E1rio"+
+      (st.totalHoras>0 ? " &#183; "+fmtN(st.totalHoras,1)+"h" : "")+"</div></div>"+
+      "<div class=\"stat-card\" style=\"border-left:4px solid #6366f1\">"+
+      "<div class=\"stat-value\">"+st.qtd+"</div>"+
+      "<div class=\"stat-label\">Lan\u00E7amentos</div></div>"+
+      "</div>"+
+      // Filter bar
+      "<div style=\"display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center\">"+
+      "<select class=\"search-input\" id=\"filtFazLanc\" onchange=\"window._lanc_setFaz(this.value)\" style=\"width:160px\">"+fazOpts+"</select>"+
+      "<select class=\"search-input\" id=\"filtSafraLanc\" onchange=\"window._lanc_setSafra(this.value)\" style=\"width:160px\">"+safraOpts+"</select>"+
+      "<select class=\"search-input\" onchange=\"window._lanc_setTipo(this.value)\" style=\"width:130px\">"+
+      "<option value=\"\">Todos tipos</option>"+
+      "<option value=\"despesa\">Despesa</option>"+
+      "<option value=\"receita\">Receita</option>"+
+      "</select>"+
+      "<input class=\"search-input\" placeholder=\"\uD83D\uDD0D Buscar descri\u00E7\u00E3o ou NF...\" oninput=\"window._lanc_setBusca(this.value)\" style=\"flex:1;min-width:180px\"/>"+
+      "</div>"+
+      // Table
+      "<div style=\"background:var(--card);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)\">"+
+      "<table style=\"width:100%;border-collapse:collapse\">"+
+      "<thead><tr style=\"background:var(--bg)\">"+
+      "<th style=\"padding:12px 16px;text-align:left;font-size:12px;color:var(--txt-s);font-weight:600;text-transform:uppercase;letter-spacing:.5px\">Data</th>"+
+      "<th style=\"padding:12px 16px;text-align:left;font-size:12px;color:var(--txt-s);font-weight:600;text-transform:uppercase;letter-spacing:.5px\">Tipo</th>"+
+      "<th style=\"padding:12px 16px;text-align:left;font-size:12px;color:var(--txt-s);font-weight:600;text-transform:uppercase;letter-spacing:.5px\">Descri\u00E7\u00E3o</th>"+
+      "<th style=\"padding:12px 16px;text-align:left;font-size:12px;color:var(--txt-s);font-weight:600;text-transform:uppercase;letter-spacing:.5px\">Fazenda / Talhão</th>"+
+      "<th style=\"padding:12px 16px;text-align:left;font-size:12px;color:var(--txt-s);font-weight:600;text-transform:uppercase;letter-spacing:.5px\">Máquina / Horas</th>"+
+      "<th style=\"padding:12px 16px;text-align:right;font-size:12px;color:var(--txt-s);font-weight:600;text-transform:uppercase;letter-spacing:.5px\">Valor</th>"+
+      "<th style=\"padding:12px 16px;text-align:center;font-size:12px;color:var(--txt-s);font-weight:600;text-transform:uppercase;letter-spacing:.5px\">A\u00E7\u00F5es</th>"+
+      "</tr></thead>"+
+      "<tbody id=\"lanc-tbody\"></tbody>"+
+      "</table></div>"+
+      "</div>";
+    renderRows();
   }
 
-  window._lanc_novo = function() { abrirForm(null); };
-  window._lanc_edit = function(btn) { var id = btn.dataset.id; abrirForm(_lancamentos.find(function(l){return l.id===id;})); };
-  window._lanc_search = function(v) { _search = v; document.getElementById('lancBody').innerHTML = renderRows(filtrados()); };
-  window._lanc_setFaz = function(v) { _filtroFaz = v; renderUI(); };
-  window._lanc_setTipo = function(v) { _filtroTipo = v; renderUI(); };
-  window._lanc_setSafra = function(v) { _filtroSafra = v; renderUI(); };
+  // ── RENDER ROWS ───────────────────────────────────────────────
+  function renderRows(){
+    const tbody = document.getElementById("lanc-tbody");
+    if(!tbody) return;
+    const items = filtrados();
+    if(!items.length){
+      tbody.innerHTML = "<tr><td colspan=\"7\" style=\"text-align:center;padding:40px;color:var(--txt-s)\">Nenhum lan\u00E7amento encontrado</td></tr>";
+      return;
+    }
+    tbody.innerHTML = items.map(function(l){
+      var faz = _fazendas.find(function(f){return f.id===l.fazenda_id;});
+      var tal = _talhoes.find(function(t){return t.id===l.talhao_id;});
+      var maq = _maquinas.find(function(m){return m.id===l.maquina_id;});
+      var ins = _insumos.find(function(i){return i.id===l.insumo_id;});
+      var cor = l.tipo==="despesa" ? "#ef4444" : "#22c55e";
+      var badge = l.tipo==="despesa"
+        ? "<span style=\"background:#fef2f2;color:#ef4444;padding:2px 8px;border-radius:9px;font-size:11px;font-weight:600\">Despesa</span>"
+        : "<span style=\"background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:9px;font-size:11px;font-weight:600\">Receita</span>";
+      var dataFmt = l.data_lancamento ? l.data_lancamento.substring(0,10) : "-";
+      var horasInfo = (maq && l.horas_trabalhadas) ? "<div style=\"font-size:11px;color:#f59e0b\">"+fmtN(l.horas_trabalhadas,1)+" h</div>" : "";
+      var maqInfo = maq ? ("<div style=\"font-size:12px;color:var(--txt)\">"+esc(maq.nome)+"</div>"+horasInfo) : "<span style=\"color:var(--txt-s);font-size:12px\">-</span>";
+      var insTag = ins ? "<br><span style=\"font-size:11px;color:var(--txt-s)\">Insumo: "+esc(ins.nome)+"</span>" : "";
+      var nfTag = l.nota_fiscal ? "<br><span style=\"font-size:11px;color:var(--txt-s)\">NF: "+esc(l.nota_fiscal)+"</span>" : "";
+      var descInfo = esc(l.descricao||"-") + insTag + nfTag;
+      var fazNome = esc(faz?faz.nome:"");
+      var talTag = tal ? "<br><span style=\"font-size:11px\">&nbsp; "+esc(tal.nome)+"</span>" : "";
+      var lJson = esc(JSON.stringify(l));
+      return "<tr style=\"border-top:1px solid var(--brd)\">"+
+        "<td style=\"padding:12px 16px;font-size:13px;color:var(--txt-s)\">"+dataFmt+"</td>"+
+        "<td style=\"padding:12px 16px\">"+badge+"</td>"+
+        "<td style=\"padding:12px 16px;font-size:13px;max-width:250px\">"+descInfo+"</td>"+
+        "<td style=\"padding:12px 16px;font-size:13px;color:var(--txt-s)\">"+fazNome+talTag+"</td>"+
+        "<td style=\"padding:12px 16px\">"+maqInfo+"</td>"+
+        "<td style=\"padding:12px 16px;text-align:right;font-weight:700;color:"+cor+";font-size:14px\">"+fmt(l.custo_total)+"</td>"+
+        "<td style=\"padding:12px 16px;text-align:center\">"+
+        "<button onclick=\"window._lanc_abrirForm(JSON.parse(decodeURIComponent(this.dataset.rec)))\" data-rec=\""+encodeURIComponent(JSON.stringify(l))+"\" style=\"background:none;border:1px solid var(--brd);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;margin-right:4px\">\u270F\uFE0F</button>"+
+        "<button data-id=\""+l.id+"\" onclick=\"window._lanc_del(this)\" style=\"background:none;border:1px solid #fca5a5;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;color:#ef4444\">\uD83D\uDDD1</button>"+
+        "</td></tr>";
+    }).join("");
+  }
 
-  function abrirForm(l) {
+  // ── FORM ─────────────────────────────────────────────────────
+  window._lanc_abrirForm = function(l){
     const isNovo = !l;
-    const tipoAtual = l ? l.tipo : 'custo';
+    const tipoAtual = l ? l.tipo : "despesa";
     const fazOpts = _fazendas.map(function(f){
-      return '<option value="'+f.id+'"'+(l&&l.fazenda_id===f.id?' selected':'')+'>'+esc(f.nome)+'</option>';
-    }).join('');
+      return "<option value=\""+f.id+"\""+((l&&l.fazenda_id===f.id)?" selected":"")+">"+ esc(f.nome)+"</option>";
+    }).join("");
     const safraOpts = _safras.map(function(s){
-      return '<option value="'+s.id+'"'+(l&&l.safra_id===s.id?' selected':'')+'>'+esc(s.nome)+'</option>';
-    }).join('');
+      return "<option value=\""+s.id+"\""+((l&&l.safra_id===s.id)?" selected":"")+">"+ esc(s.nome)+"</option>";
+    }).join("");
     const talhaoOpts = _talhoes.map(function(t){
-      return '<option value="'+t.id+'"'+(l&&l.talhao_id===t.id?' selected':'')+'>'+esc(t.nome)+'</option>';
-    }).join('');
+      return "<option value=\""+t.id+"\""+((l&&l.talhao_id===t.id)?" selected":"")+">"+ esc(t.nome)+"</option>";
+    }).join("");
     const opOpts = _operadores.map(function(o){
-      return '<option value="'+o.id+'"'+(l&&l.operador_id===o.id?' selected':'')+'>'+esc(o.nome)+'</option>';
-    }).join('');
-    const insumoOpts = _insumos.map(function(i){
-      return '<option value="'+i.id+'"'+(l&&l.insumo_id===i.id?' selected':'')+'>'+esc(i.nome)+'</option>';
-    }).join('');
+      return "<option value=\""+o.id+"\""+((l&&l.operador_id===o.id)?" selected":"")+">"+ esc(o.nome)+"</option>";
+    }).join("");
+    const insumoOpts = _buildInsumoOpts(_insumos, false);
+    // Build machine options with custo_hora stored as data attribute
     const maqOpts = _maquinas.map(function(m){
-      return '<option value="'+m.id+'"'+(l&&l.maquina_id===m.id?' selected':'')+'>'+esc(m.nome)+'</option>';
-    }).join('');
-    const unidades = ['kg','L','g','mL','sc','un','cx','t','h','d'];
-    const unidOpts = unidades.map(function(u){ return '<option value="'+u+'"'+(l&&l.unidade===u?' selected':'')+'>'+u+'</option>'; }).join('');
+      return "<option value=\""+m.id+"\" data-custo=\""+( m.custo_hora||0)+"\""+((l&&l.maquina_id===m.id)?" selected":"")+">"+ esc(m.nome)+"</option>";
+    }).join("");
+    const unidades = ["kg","L","g","mL","sc","un","cx","t","h","d"];
+    const unidOpts = unidades.map(function(u){ return "<option value=\""+u+"\""+((l&&l.unidade===u)?" selected":"")+">"+u+"</option>"; }).join("");
+    const horasVal = l&&l.horas_trabalhadas ? l.horas_trabalhadas : "";
+    const custoHoraVal = l&&l.custo_hora_maquina ? l.custo_hora_maquina : "";
+    const temMaq = l&&l.maquina_id ? true : false;
+    const maqDisplay = temMaq ? "block" : "none";
 
-    showModal(isNovo ? '+ Novo Lancamento' : 'Editar Lancamento',
-      '<div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
-      '<div class="form-field"><label>Tipo *</label>'+
-      '<select id="lanc_tipo">'+
-      '<option value="despesa"'+(tipoAtual==='despesa'?' selected':'')+'>Despesa</option>'+
-      '<option value="receita"'+(tipoAtual==='receita'?' selected':'')+'>Receita</option>'+
-      '</select></div>'+
-      '<div class="form-field"><label>Data *</label>'+
-      '<input id="lanc_data" type="date" value="'+(l&&l.data_lancamento||new Date().toISOString().slice(0,10))+'"/></div>'+
-      '<div class="form-field"><label>Fazenda *</label>'+
-      '<select id="lanc_faz"><option value="">Selecione...</option>'+fazOpts+'</select></div>'+
-      '<div class="form-field"><label>Safra</label>'+
-      '<select id="lanc_safra"><option value="">Nenhuma</option>'+safraOpts+'</select></div>'+
-      '<div class="form-field"><label>Talhao</label>'+
-      '<select id="lanc_talhao" onchange="window._lanc_onTalhaoChange(this.value)"><option value="">Nenhum</option>'+talhaoOpts+'</select></div>'+
-      '<div class="form-field"><label>Operador</label>'+
-      '<select id="lanc_op"><option value="">Nenhum</option>'+opOpts+'</select></div>'+
-      '<div class="form-field" id="lanc_insumo_wrap"><label>Insumo</label>'+
-      '<div id="lanc_cert_warn" style="display:none;margin-bottom:6px;padding:6px 10px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;font-size:11px;color:#92400e;">&#9888; Certificação ativa: apenas insumos permitidos</div>'+
-      '<select id="lanc_insumo"><option value="">Nenhum</option>'+insumoOpts+'</select></div>'+
-      '<div class="form-field"><label>Maquina</label>'+
-      '<select id="lanc_maq"><option value="">Nenhuma</option>'+maqOpts+'</select></div>'+
-      '<div class="form-field"><label>Quantidade</label>'+
-      '<input id="lanc_qtd" type="number" step="0.01" min="0" value="'+(l&&l.quantidade||'')+'"/></div>'+
-      '<div class="form-field"><label>Unidade</label>'+
-      '<select id="lanc_unid"><option value="">Selecione...</option>'+unidOpts+'</select></div>'+
-      '<div class="form-field"><label>Custo Total (R$) *</label>'+
-      '<input id="lanc_custo" type="number" step="0.01" min="0" value="'+(l&&l.custo_total||'')+'"/></div>'+
-      '<div class="form-field"><label>Nota Fiscal</label>'+
-      '<input id="lanc_nf" value="'+esc(l&&l.nota_fiscal||'')+'" placeholder="Numero da NF"/></div>'+
-      '<div class="form-field" style="grid-column:1/-1"><label>Descricao *</label>'+
-      '<input id="lanc_desc" value="'+esc(l&&l.descricao||'')+'" placeholder="Descricao do lancamento"/></div>'+
-      '<div class="form-field" style="grid-column:1/-1"><label>Observacoes</label>'+
-      '<textarea id="lanc_obs" rows="2" style="width:100%;resize:vertical;padding:8px;border:1px solid var(--brd);border-radius:var(--r)">'+esc(l&&l.observacoes||'')+'</textarea></div>'+
-      '</div>',
-      async function() {
-        const tipo   = document.getElementById('lanc_tipo').value;
-        const data   = document.getElementById('lanc_data').value;
-        const fazId  = document.getElementById('lanc_faz').value;
-        const safId  = document.getElementById('lanc_safra').value || null;
-        const talId  = document.getElementById('lanc_talhao').value || null;
-        const opId   = document.getElementById('lanc_op').value || null;
-        const insId  = document.getElementById('lanc_insumo').value || null;
-        const maqId  = document.getElementById('lanc_maq').value || null;
-        const qtd    = parseFloat(document.getElementById('lanc_qtd').value) || null;
-        const unid   = document.getElementById('lanc_unid').value || null;
-        const custo  = parseFloat(document.getElementById('lanc_custo').value);
-        const nf     = document.getElementById('lanc_nf').value.trim() || null;
-        const desc   = document.getElementById('lanc_desc').value.trim();
-        const obs    = document.getElementById('lanc_obs').value.trim() || null;
-
-        if(!data) { toast('Informe a data','bad'); return; }
-        if(!custo || custo <= 0) { toast('Informe o custo total','bad'); return; }
-        if(!fazId) { toast('Selecione a fazenda','bad'); return; }
-        if(!desc) { toast('Informe a descricao','bad'); return; }
-
+    showModal(isNovo ? "+ Novo Lan\u00E7amento" : "Editar Lan\u00E7amento",
+      "<div class=\"form-grid\" style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px\">"+
+      // Row 1: Tipo + Data
+      "<div class=\"form-field\"><label>Tipo *</label>"+
+      "<select id=\"lanc_tipo\" onchange=\"window._lanc_onTipoChange(this.value)\">"+
+      "<option value=\"despesa\""+((tipoAtual==="despesa")?" selected":"")+">Despesa</option>"+
+      "<option value=\"receita\""+((tipoAtual==="receita")?" selected":"")+">Receita</option>"+
+      "</select></div>"+
+      "<div class=\"form-field\"><label>Data *</label>"+
+      "<input id=\"lanc_data\" type=\"date\" value=\""+((l&&l.data_lancamento)?l.data_lancamento.substring(0,10):today())+"\"</div>"+
+      // Row 2: Fazenda + Safra
+      "<div class=\"form-field\"><label>Fazenda *</label>"+
+      "<select id=\"lanc_faz\" onchange=\"window._lanc_onFazForm(this.value)\"><option value=\"\">Selecione...</option>"+fazOpts+"</select></div>"+
+      "<div class=\"form-field\"><label>Safra</label>"+
+      "<select id=\"lanc_safra\"><option value=\"\">Nenhuma</option>"+safraOpts+"</select></div>"+
+      // Row 3: Talhão + Operador
+      "<div class=\"form-field\"><label>Talh\u00E3o</label>"+
+      "<select id=\"lanc_talhao\" onchange=\"window._lanc_onTalhaoChange(this.value)\"><option value=\"\">Nenhum</option>"+talhaoOpts+"</select></div>"+
+      "<div class=\"form-field\"><label>Operador</label>"+
+      "<select id=\"lanc_op\"><option value=\"\">Nenhum</option>"+opOpts+"</select></div>"+
+      // Row 4: Insumo
+      "<div class=\"form-field\" id=\"lanc_insumo_wrap\"><label>Insumo</label>"+
+      "<div id=\"lanc_cert_warn\" style=\"display:none;margin-bottom:6px;padding:6px 10px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;font-size:11px;color:#92400e\">&#9888; Certifica\u00E7\u00E3o ativa: apenas insumos permitidos</div>"+
+      "<select id=\"lanc_insumo\" onchange=\"window._lanc_onInsumoChange(this.value)\"><option value=\"\">Nenhum</option>"+insumoOpts+"</select></div>"+
+      // Row 4b: Maquina
+      "<div class=\"form-field\"><label>M\u00E1quina</label>"+
+      "<select id=\"lanc_maq\" onchange=\"window._lanc_onMaqChange(this.value)\"><option value=\"\">Nenhuma</option>"+maqOpts+"</select></div>"+
+      // Row 5: HORAS TRABALHADAS (conditional - show when machine selected)
+      "<div class=\"form-field\" id=\"lanc_horas_wrap\" style=\"display:"+maqDisplay+";background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:10px\"><label style=\"color:#92400e;font-weight:600\">\u23F1\uFE0F Horas Trabalhadas *</label>"+
+      "<input id=\"lanc_horas\" type=\"number\" step=\"0.5\" min=\"0\" placeholder=\"Ex: 4.5\" value=\""+horasVal+"\" oninput=\"window._lanc_calcCustoMaq()\"/></div>"+
+      // Custo/hora auto
+      "<div class=\"form-field\" id=\"lanc_custoH_wrap\" style=\"display:"+maqDisplay+";background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:10px\"><label style=\"color:#92400e;font-weight:600\">R$/Hora</label>"+
+      "<input id=\"lanc_custo_hora\" type=\"number\" step=\"0.01\" min=\"0\" placeholder=\"Ex: 180.00\" value=\""+custoHoraVal+"\" oninput=\"window._lanc_calcCustoMaq()\"/></div>"+
+      // Row 6: Quantidade + Unidade
+      "<div class=\"form-field\"><label>Quantidade</label>"+
+      "<input id=\"lanc_qtd\" type=\"number\" step=\"0.01\" min=\"0\" value=\""+((l&&l.quantidade)||"")+"\"/></div>"+
+      "<div class=\"form-field\"><label>Unidade</label>"+
+      "<select id=\"lanc_unid\"><option value=\"\">Selecione...</option>"+unidOpts+"</select></div>"+
+      // Row 7: Custo Total + NF
+      "<div class=\"form-field\"><label>Custo Total (R$) *</label>"+
+      "<input id=\"lanc_custo\" type=\"number\" step=\"0.01\" min=\"0\" value=\""+((l&&l.custo_total)||"")+"\"/></div>"+
+      "<div class=\"form-field\"><label>Nota Fiscal</label>"+
+      "<input id=\"lanc_nf\" value=\""+esc((l&&l.nota_fiscal)||"")+"\"/></div>"+
+      // Row 8: Descrição full width
+      "<div class=\"form-field\" style=\"grid-column:1/-1\"><label>Descri\u00E7\u00E3o *</label>"+
+      "<input id=\"lanc_desc\" value=\""+esc((l&&l.descricao)||"")+"\"/></div>"+
+      // Row 9: Observações full width
+      "<div class=\"form-field\" style=\"grid-column:1/-1\"><label>Observa\u00E7\u00F5es</label>"+
+      "<textarea id=\"lanc_obs\" rows=\"2\" style=\"width:100%;resize:vertical;padding:8px;border:1px solid var(--brd);border-radius:var(--r)\">"+esc((l&&l.observacoes)||"")+"</textarea></div>"+
+      "</div>",
+      // SAVE ACTION
+      async function(){
+        const tipo   = document.getElementById("lanc_tipo").value;
+        const data   = document.getElementById("lanc_data").value;
+        const fazId  = document.getElementById("lanc_faz").value;
+        const safId  = document.getElementById("lanc_safra").value || null;
+        const talId  = document.getElementById("lanc_talhao").value || null;
+        const opId   = document.getElementById("lanc_op").value || null;
+        const insId  = document.getElementById("lanc_insumo").value || null;
+        const maqId  = document.getElementById("lanc_maq").value || null;
+        const qtd    = parseFloat(document.getElementById("lanc_qtd").value) || null;
+        const unid   = document.getElementById("lanc_unid").value || null;
+        const custo  = parseFloat(document.getElementById("lanc_custo").value);
+        const nf     = document.getElementById("lanc_nf").value.trim() || null;
+        const desc   = document.getElementById("lanc_desc").value.trim();
+        const obs    = document.getElementById("lanc_obs").value.trim() || null;
+        const horas  = maqId ? (parseFloat(document.getElementById("lanc_horas").value) || null) : null;
+        const custoH = maqId ? (parseFloat(document.getElementById("lanc_custo_hora").value) || null) : null;
+        if(!data) { toast("Informe a data","bad"); return; }
+        if(!custo || custo <= 0) { toast("Informe o custo total","bad"); return; }
+        if(!fazId) { toast("Selecione a fazenda","bad"); return; }
+        if(!desc)  { toast("Informe a descri\u00E7\u00E3o","bad"); return; }
+        if(maqId && !horas) { toast("Informe as horas trabalhadas para o maquin\u00E1rio","bad"); return; }
         const payload = { tipo, data_lancamento: data, fazenda_id: fazId, safra_id: safId, talhao_id: talId,
           operador_id: opId, insumo_id: insId, maquina_id: maqId, quantidade: qtd, unidade: unid,
-          custo_total: custo, nota_fiscal: nf, descricao: desc, observacoes: obs };
+          custo_total: custo, nota_fiscal: nf, descricao: desc, observacoes: obs,
+          horas_trabalhadas: horas, custo_hora_maquina: custoH };
         const { error } = isNovo
-          ? await sb.from('lancamentos').insert(payload)
-          : await sb.from('lancamentos').update(payload).eq('id', l.id);
-        if(error) { toast('Erro: '+error.message,'bad'); return; }
-        toast(isNovo ? 'Lancamento registrado!' : 'Lancamento atualizado!','ok');
+          ? await sb.from("lancamentos").insert(payload)
+          : await sb.from("lancamentos").update(payload).eq("id", l.id);
+        if(error) { toast("Erro: "+error.message,"bad"); return; }
+        toast(isNovo ? "Lan\u00E7amento registrado!" : "Lan\u00E7amento atualizado!","ok");
         closeModal(); render();
       }
     );
-    setTimeout(function(){ var el = document.getElementById('lanc_desc'); if(el) el.focus(); }, 100);
-  }
+    setTimeout(function(){ var e=document.getElementById("lanc_desc"); if(e) e.focus(); }, 100);
+  };
 
-  window._lanc_del = function(btn) {
+  // ── DYNAMIC HANDLERS ─────────────────────────────────────────
+
+  // When machine is selected: show horas field, auto-fill custo/hora
+  window._lanc_onMaqChange = function(maqId){
+    var horasWrap = document.getElementById("lanc_horas_wrap");
+    var custoHWrap = document.getElementById("lanc_custoH_wrap");
+    if(!horasWrap) return;
+    if(!maqId){
+      horasWrap.style.display = "none";
+      custoHWrap.style.display = "none";
+      return;
+    }
+    horasWrap.style.display = "block";
+    custoHWrap.style.display = "block";
+    // Auto-fill custo/hora from machine data
+    var maqSelect = document.getElementById("lanc_maq");
+    var selectedOpt = maqSelect ? maqSelect.querySelector("option[value=\""+maqId+"\"]") : null;
+    if(selectedOpt){
+      var custoHora = selectedOpt.getAttribute("data-custo");
+      if(custoHora && parseFloat(custoHora) > 0){
+        var custoHInput = document.getElementById("lanc_custo_hora");
+        if(custoHInput) custoHInput.value = custoHora;
+      }
+    }
+    // Set tipo to despesa automatically
+    var tipoSel = document.getElementById("lanc_tipo");
+    if(tipoSel) tipoSel.value = "despesa";
+    // Focus on horas field
+    setTimeout(function(){ var h=document.getElementById("lanc_horas"); if(h) h.focus(); }, 50);
+  };
+
+  // Calculate total cost = horas * custo_hora
+  window._lanc_calcCustoMaq = function(){
+    var horas = parseFloat(document.getElementById("lanc_horas").value) || 0;
+    var custoH = parseFloat(document.getElementById("lanc_custo_hora").value) || 0;
+    if(horas > 0 && custoH > 0){
+      var total = (horas * custoH).toFixed(2);
+      var custoInput = document.getElementById("lanc_custo");
+      if(custoInput) custoInput.value = total;
+    }
+  };
+
+  // When insumo selected: auto-fill qty and unit if price available
+  window._lanc_onInsumoChange = function(insId){
+    if(!insId) return;
+    var ins = _insumos.find(function(i){return i.id===insId;});
+    if(!ins) return;
+    var unidSel = document.getElementById("lanc_unid");
+    if(unidSel && ins.unidade) unidSel.value = ins.unidade;
+    // Recalculate cost if qty is already set
+    var qtdInput = document.getElementById("lanc_qtd");
+    var custoInput = document.getElementById("lanc_custo");
+    var qtd = qtdInput ? parseFloat(qtdInput.value) : 0;
+    if(qtd > 0 && ins.preco_unitario > 0 && custoInput){
+      custoInput.value = (qtd * ins.preco_unitario).toFixed(2);
+    }
+  };
+
+  // When fazenda changes in form: filter safras and talhoes
+  window._lanc_onFazForm = function(fazId){
+    var safSel = document.getElementById("lanc_safra");
+    var talSel = document.getElementById("lanc_talhao");
+    var opSel  = document.getElementById("lanc_op");
+    var maqSel = document.getElementById("lanc_maq");
+    if(safSel){
+      var safs = fazId ? _safras.filter(function(s){return s.fazenda_id===fazId;}) : _safras;
+      safSel.innerHTML = "<option value=\"\">Nenhuma</option>" + safs.map(function(s){
+        return "<option value=\""+s.id+"\">"+esc(s.nome)+"</option>";
+      }).join("");
+      // Auto-select active safra if only one
+      var ativos = safs.filter(function(s){return s.status==="aberta";});
+      if(ativos.length===1) safSel.value = ativos[0].id;
+    }
+    if(talSel){
+      var tals = fazId ? _talhoes.filter(function(t){return t.fazenda_id===fazId;}) : _talhoes;
+      talSel.innerHTML = "<option value=\"\">Nenhum</option>" + tals.map(function(t){
+        return "<option value=\""+t.id+"\">"+esc(t.nome)+"</option>";
+      }).join("");
+    }
+    if(opSel){
+      var ops = fazId ? _operadores.filter(function(o){return o.fazenda_id===fazId;}) : _operadores;
+      opSel.innerHTML = "<option value=\"\">Nenhum</option>" + ops.map(function(o){
+        return "<option value=\""+o.id+"\">"+esc(o.nome)+"</option>";
+      }).join("");
+    }
+    if(maqSel){
+      var maqs = fazId ? _maquinas.filter(function(m){return m.fazenda_id===fazId;}) : _maquinas;
+      maqSel.innerHTML = "<option value=\"\">Nenhuma</option>" + maqs.map(function(m){
+        return "<option value=\""+m.id+"\" data-custo=\""+( m.custo_hora||0)+"\">"+ esc(m.nome)+"</option>";
+      }).join("");
+    }
+  };
+
+  // Talhao change: filter insumos by certification
+  window._lanc_onTalhaoChange = function(talId){
+    var tal = _talhoes.find(function(t){return t.id===talId;});
+    var filterCert = tal && tal.certificacao_id ? true : false;
+    var certWarn = document.getElementById("lanc_cert_warn");
+    if(certWarn) certWarn.style.display = filterCert ? "block" : "none";
+    var insSel = document.getElementById("lanc_insumo");
+    if(insSel){
+      insSel.innerHTML = "<option value=\"\">Nenhum</option>" + _buildInsumoOpts(_insumos, filterCert);
+    }
+    // Also filter talhoes if fazenda is known
+    var stillExists = talId && _talhoes.find(function(t){return t.id===talId;});
+    if(!stillExists && insSel) insSel.value = "";
+  };
+
+  // Tipo change: show/hide maquina fields
+  window._lanc_onTipoChange = function(tipo){
+    // If receita, hide maquina fields
+    if(tipo === "receita"){
+      var maqSel = document.getElementById("lanc_maq");
+      if(maqSel) maqSel.value = "";
+      var hw = document.getElementById("lanc_horas_wrap");
+      var cw = document.getElementById("lanc_custoH_wrap");
+      if(hw) hw.style.display = "none";
+      if(cw) cw.style.display = "none";
+    }
+  };
+
+  // Delete handler
+  window._lanc_del = function(btn){
     var id = btn.dataset.id;
-    showConfirm('Excluir este lancamento?',
-      async function() {
-        const { error } = await sb.from('lancamentos').delete().eq('id', id);
-        if(error) { toast('Erro: '+error.message,'bad'); return; }
-        toast('Lancamento removido','ok'); render();
+    showConfirm("Excluir este lan\u00E7amento?",
+      async function(){
+        const { error } = await sb.from("lancamentos").delete().eq("id", id);
+        if(error) { toast("Erro: "+error.message,"bad"); return; }
+        toast("Lan\u00E7amento removido","ok"); render();
       }
     );
   };
 
-  
-
-// Certificação: filtrar insumos quando talhão é selecionado
-function _buildInsumoOpts(insumos, filterCert) {
-  return insumos
-    .filter(function(i) { return !filterCert || i.certificacao_permitida !== false; })
-    .map(function(i) {
-      return '<option value="' + i.id + '">' + esc(i.nome) + '</option>';
-    }).join('');
-}
-
-window._lanc_onTalhaoChange = function(talhaoId) {
-  var talhao = _talhoes.find(function(t) { return t.id === talhaoId; });
-  var filterCert = false;
-  var certLabel = '';
-  if (talhao && talhao.segue_certificacao !== false) {
-    var fazenda = _fazendas.find(function(f) { return f.id === talhao.fazenda_id; });
-    if (fazenda && fazenda.certificada) {
-      filterCert = true;
-      certLabel = fazenda.tipo_certificacao || 'Certificada';
-    }
+  // Certification insumo filter
+  function _buildInsumoOpts(insumos, filterCert){
+    return insumos
+      .filter(function(i){ return !filterCert || i.certificacao_permitida !== false; })
+      .map(function(i){
+        return "<option value=\""+i.id+"\">"+esc(i.nome)+"</option>";
+      }).join("");
   }
-  var sel = document.getElementById('lanc_insumo');
-  var warn = document.getElementById('lanc_cert_warn');
-  if (!sel) return;
-  var currentVal = sel.value;
-  var opts = '<option value="">Nenhum</option>' + _buildInsumoOpts(_insumos, filterCert);
-  sel.innerHTML = opts;
-  // Restore previous selection if still valid
-  if (currentVal) {
-    var stillExists = Array.from(sel.options).some(function(o) { return o.value === currentVal; });
-    if (stillExists) sel.value = currentVal;
-  }
-  if (warn) {
-    if (filterCert) {
-      warn.style.display = 'block';
-      warn.innerHTML = '&#9888; <strong>Certificação ' + esc(certLabel) + ':</strong> apenas insumos com certificação permitida são exibidos.';
-    } else {
-      warn.style.display = 'none';
-    }
-  }
-};
 
-render();
+  // ── MAIN RENDER ──────────────────────────────────────────────
+  async function render(){
+    el.innerHTML = "<div style=\"padding:40px;text-align:center;color:var(--txt-s)\">\u23F3 Carregando lan\u00E7amentos...</div>";
+    await loadData();
+    renderUI();
+  }
+
+  await render();
 };
