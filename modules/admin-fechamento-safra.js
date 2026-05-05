@@ -25,7 +25,7 @@ window.module_fechamento_safra = async function() {
 
   var safOpts = safras.map(function(s) {
     var fzNome = s.fazendas ? s.fazendas.nome : "";
-    return "<option value=\""+s.id+"\">"+s.nome+" - "+fzNome+" ("+s.cultura+" "+s.ano_agricola+")</option>";
+    return "<option value=\""+s.id+"\">"+s.nome+" - "+fzNome+" ("+(s.cultura||"")+" "+(s.ano_agricola||"")+")</option>";
   }).join("");
 
   var html = "";
