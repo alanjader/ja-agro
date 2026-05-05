@@ -376,7 +376,7 @@ window.module_lancamentos = async function() {
 
   function _buildInsumoOpts(insumos, filterCert){
     return insumos
-      .filter(function(i){ return !filterCert || i.certificacao_permitida !== false; })
+      .filter(function(i){ return !filterCert || i.certificacao_permitida === true; })
       .map(function(i){ return "<option value=\""+i.id+"\">"+esc(i.nome)+"</option>"; })
       .join("");
   }
