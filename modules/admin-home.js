@@ -38,7 +38,7 @@ window.module_home = async function() {
   var vendas = (vendRes.data || []);
 
   // Compute KPIs
-  var safrasAbertas = safras.filter(function(s){ return s.status==="aberto"; });
+  var safrasAbertas = safras.filter(function(s){ return s.status==="aberta"; });
   var insBaixos = insumos.filter(function(i){ return parseFloat(i.estoque_atual||0) < parseFloat(i.estoque_minimo||0); });
   var totalDesp = lancs.filter(function(l){ return l.tipo==="despesa"; }).reduce(function(a,l){ return a+parseFloat(l.custo_total||0); },0);
   var totalRec = lancs.filter(function(l){ return l.tipo==="receita"; }).reduce(function(a,l){ return a+parseFloat(l.custo_total||0); },0);
