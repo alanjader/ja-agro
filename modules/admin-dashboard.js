@@ -185,7 +185,7 @@ window.module_dashboard = async function() {
   html += "<h3 style=\"margin:0 0 14px;font-size:14px;color:#333\">&#127807; Top Insumos por Custo</h3>";
   var insByInsumo = {};
   lancs.filter(function(l){return l.tipo==="despesa" && l.insumo_id;}).forEach(function(l){
-    var nome = l.insumos ? l.insumos.nome : l.insumo_id;
+    var insObj = insumos.find(function(x){ return x.id === l.insumo_id; }); var nome = insObj ? insObj.nome : l.insumo_id;
     insByInsumo[nome] = (insByInsumo[nome]||0) + parseFloat(l.custo_total||0);
   });
   var topInsumos = Object.keys(insByInsumo).map(function(k){return {n:k,v:insByInsumo[k]};}).sort(function(a,b){return b.v-a.v;}).slice(0,5);
