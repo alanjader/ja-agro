@@ -504,7 +504,7 @@ tbody tr:last-child td{border-bottom:none;}
     </div>
 
           <a href="#" class="nav-item" data-module="vendas-graos" onclick="loadModule('vendas-graos',this)">
-            <span class="nav-icon">&#127807;</span><span class="nav-label">Vendas de Gr&atilde;os</span>
+            <span class="nav-icon">&#127807;</span><span class="nav-label">Vendas</span>
           </a>
           <a href="#" class="nav-item" data-module="fechamento-safra" onclick="loadModule('fechamento-safra',this)">
             <span class="nav-icon">&#128200;</span><span class="nav-label">Fechamento de Safra</span>
@@ -555,7 +555,10 @@ tbody tr:last-child td{border-bottom:none;}
           <span class="nav-icon">🧪</span> Análise de Solo
           <span class="nav-badge" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px">PRO</span>
         </div>
-</nav>
+
+        <div class="nav-item" data-module="qualidade" onclick="loadModule('qualidade',this)">
+          <span class="nav-icon">&#127942;</span> Qualidade
+        </div></nav>
 
   <div class="sidebar-footer">
     <div class="user-card" id="userCard">
@@ -823,6 +826,16 @@ initAuth();
   // Bridge: map dash-module-names to underscore function names
   window['module_vendas-graos'] = async function() { await window.module_vendas_graos(); };
   window['module_fechamento-safra'] = async function() { await window.module_fechamento_safra(); };
+
+    window['module_qualidade'] = async function() {
+      const cont = document.getElementById('mainContent');
+      setTopbar('Qualidade', 'Registros de qualidade por cultura');
+      if(window.AdminQualidade) { await window.AdminQualidade.render(cont); return; }
+      var s = document.createElement('script');
+      s.src = 'modules/admin-qualidade.js?v=' + Date.now();
+      s.onload = async function() { if(window.AdminQualidade) await window.AdminQualidade.render(cont); };
+      document.head.appendChild(s);
+    };
 </script>
 </body>
 </html>
