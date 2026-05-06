@@ -37,7 +37,7 @@ window.module_vendas_graos = async function() {
   var html = "";
   html += "<div style=\"max-width:1200px;margin:0 auto;padding:8px 0\">"
   html += "<div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:20px\">"
-  html += "<div><h2 style=\"margin:0;font-size:22px;color:#1a2e1a\">&#127807; Vendas de Gr&atilde;os</h2>"
+  html += "<div><h2 style=\"margin:0;font-size:22px;color:#1a2e1a\">&#127807; Vendas</h2>"
   html += "<p style=\"margin:2px 0 0;color:#666;font-size:13px\">Contratos, entregas parciais e receita</p></div>"
   html += "<button onclick=\"window._vgShowForm();\" style=\"background:#2d7d32;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-size:13px;font-weight:600\">+ Novo Contrato</button>"
   html += "</div>"
