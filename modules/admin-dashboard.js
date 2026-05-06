@@ -280,20 +280,27 @@ window.module_dashboard = async function() {
   html += "</div>";
   c.innerHTML = html;
 
+  // Chart initialization
+  function safeChart(id) {
+    var el = document.getElementById(id);
+    if (!el) return null;
+    return el.getContext ? el.getContext("2d") : null;
+  }
 
-new Chart(ctxD, {
+  var ctxD = safeChart("chartDoughnut");
+  if (ctxD) {
+    new Chart(ctxD, {
       type: "doughnut",
       data: {
         labels: ["Insumos","Mao de Obra","Maquinas","Outros"],
-        datasets: [{ data: [catTotals.Insumos,catTotals.MaoDeObra,catTotals.Maquinas,catTotals.Outros], backgroundColor: ["#2d7d32","#1565c0","#e65100","#9e9e9e"], borderWidth: 0, hoverOffset: 8 }]
+        datasets: [{ data: [catTotals.Insumos, catTotals["Mao de Obra"], catTotals.Maquinas, catTotals.Outros], backgroundColor: ["#2d7d32","#1565c0","#e65100","#9e9e9e"], borderWidth: 0 }]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx){ return ctx.label+": R$ "+parseFloat(ctx.raw||0).toLocaleString("pt-BR",{minimumFractionDigits:2}); } } } }, cutout: "65%" }
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: "70%" }
     });
   }
 
-  // CHART 2: Bar - Lancamentos por Mes
   var ctxB = safeChart("chartBar");
-  if (ctxB) {
+  if (ctxB && monthLabels.length > 0) {
     new Chart(ctxB, {
       type: "bar",
       data: {
@@ -303,40 +310,7 @@ new Chart(ctxD, {
           { label: "Receitas", data: monthRec, backgroundColor: "rgba(45,125,50,0.7)", borderRadius: 4 }
         ]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "top", labels: { font: { size: 11 } } }, tooltip: { callbacks: { label: function(ctx){ return ctx.dataset.label+": "+fmtBrl(ctx.raw||0); } } } }, scales: { x: { grid: { display: false } }, y: { grid: { color: "#f5f5f5" }, ticks: { callback: function(v){ return "R$"+Math.round(v/1000)+"k"; } } } } }
-    });
-  }
-
-  // CHART 3: ROI por Fechamento (horizontal bar)
-  var ctxR = safeChart("chartRoi");
-  if (ctxR && fechComRoi.length > 0) {
-    var roiColors = fechRoi.map(function(v){ return v>=0?"rgba(45,125,50,0.75)":"rgba(198,40,40,0.75)"; });
-    new Chart(ctxR, {
-      type: "bar",
-      data: {
-        labels: fechLabels,
-        datasets: [{ label: "ROI %", data: fechRoi, backgroundColor: roiColors, borderRadius: 4 }]
-      },
-      options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx){ return "ROI: "+ctx.raw.toFixed(1)+"%"; } } } }, scales: { x: { grid: { color: "#f5f5f5" }, ticks: { callback: function(v){ return v+"%"; } } }, y: { grid: { display: false } } } }
-    });
-  }
-
-  // CHART 4: Receita vs Custo (grouped bar)
-  var ctxC = safeChart("chartCompar");
-  if (ctxC && safrasComDados.length > 0) {
-    var compLabels = safrasComDados.map(function(f){ return f.safras?f.safras.nome.substring(0,10):"-"; });
-    var compReceita = safrasComDados.map(function(f){ return parseFloat(f.receita_vendas||0); });
-    var compCusto = safrasComDados.map(function(f){ return parseFloat(f.custo_total||0); });
-    new Chart(ctxC, {
-      type: "bar",
-      data: {
-        labels: compLabels,
-        datasets: [
-          { label: "Receita", data: compReceita, backgroundColor: "rgba(45,125,50,0.75)", borderRadius: 4 },
-          { label: "Custo Total", data: compCusto, backgroundColor: "rgba(198,40,40,0.75)", borderRadius: 4 }
-        ]
-      },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "top", labels: { font: { size: 11 } } }, tooltip: { callbacks: { label: function(ctx){ return ctx.dataset.label+": "+fmtBrl(ctx.raw||0); } } } }, scales: { x: { grid: { display: false } }, y: { grid: { color: "#f5f5f5" }, ticks: { callback: function(v){ return "R$"+Math.round(v/1000)+"k"; } } } } }
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return "R$"+(v/1000).toFixed(0)+"k"; }, font: { size: 10 } } } } }
     });
   }
 
