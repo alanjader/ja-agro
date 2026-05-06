@@ -278,8 +278,6 @@ window.module_dashboard = async function() {
   }
   html += "</div>";
   html += "</div>";
-
-  html += "</div>";
   c.innerHTML = html;
 
 
