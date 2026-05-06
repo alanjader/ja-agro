@@ -1,7 +1,6 @@
 window.AdminQualidade = {
   render: async function(cont) {
     if (!cont) return;
-    var sb = window.sb;
     cont.innerHTML = "<div style=\"padding:20px;text-align:center;color:#888\">Carregando qualidade...</div>";
 
     var fRes = await sb.from("fazendas").select("id,nome").eq("ativo",true).order("nome");
