@@ -11,14 +11,15 @@ window.module_lancamentos = async function() {
   function today(){ return new Date().toISOString().slice(0,10); }
 
   async function loadData(){
-    const [fa,sa,ta,op,ins,maq,lan] = await Promise.all([
+    const [fa,sa,ta,op,ins,maq,lan,cats] = await Promise.all([
       sb.from("fazendas").select("id,nome").order("nome"),
       sb.from("safras").select("id,nome,fazenda_id,status").order("nome"),
       sb.from("talhoes").select("id,nome,fazenda_id,segue_certificacao").order("nome"),
       sb.from("operadores").select("id,nome,fazenda_id").order("nome"),
       sb.from("insumos").select("id,nome,unidade,preco_unitario,certificacao_permitida").order("nome"),
       sb.from("maquinas").select("id,nome,fazenda_id,tipo,custo_hora,horimetro_atual").order("nome"),
-      sb.from("lancamentos").select("*").order("data_lancamento",{ascending:false}).limit(300)
+      sb.from("lancamentos").select("*").order("data_lancamento",{ascending:false}).limit(300),
+    sb.from("categorias_lancamento").select("id,nome,tipo").order("nome")
     ]);
     _fazendas  = fa.data||[];
     _safras    = sa.data||[];
@@ -27,6 +28,7 @@ window.module_lancamentos = async function() {
     _insumos   = ins.data||[];
     _maquinas  = maq.data||[];
     _lancamentos= lan.data||[];
+    window._lancCategorias = (cats.data||[]);
   }
 
   function calcStats(){
@@ -188,6 +190,9 @@ window.module_lancamentos = async function() {
       "<option value=\"despesa\""+((tipoAtual==="despesa")?" selected":"")+">Despesa</option>"+
       "<option value=\"receita\""+((tipoAtual==="receita")?" selected":"")+">Receita</option>"+
       "</select></div>"+
+      "<div class=\"form-field\">"+
+      "<label class=\"form-label\">Categoria *</label>"+
+      "<select class=\"form-input\" id=\"lanc_cat\">" + (window._lancCategorias||[]).map(function(c){return "<option value=\""+c.id+"\">" + c.nome + "</option>";}).join("") + "</select></div>"+
       "<div class=\"form-field\"><label>Data *</label>"+
       "<input id=\"lanc_data\" type=\"date\" value=\""+((l&&l.data_lancamento)?l.data_lancamento.substring(0,10):today())+"\"/></div>"+
       "<div class=\"form-field\"><label>Fazenda *</label>"+
@@ -256,7 +261,8 @@ window.module_lancamentos = async function() {
         const payload = { tipo: tipo, data_lancamento: data, fazenda_id: fazId, safra_id: safId,
           talhao_id: talId, operador_id: opId, insumo_id: insId, maquina_id: maqId,
           quantidade: qtd, unidade: unid, custo_total: custo,
-          nota_fiscal: nf, descricao: desc, observacoes: obs };
+          nota_fiscal: nf, descricao: desc,
+          categoria_id: (document.getElementById("lanc_cat")||{}).value||null, observacoes: obs };
         const { error } = isNovo
           ? await sb.from("lancamentos").insert(payload)
           : await sb.from("lancamentos").update(payload).eq("id", l.id);
