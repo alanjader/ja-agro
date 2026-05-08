@@ -37,6 +37,22 @@ window.module_home = async function() {
   var fechamentos = (fechRes.data || []);
   var vendas = (vendRes.data || []);
 
+  // Fazenda selecionada (persistida em sessionStorage)
+  var _homeFazSel = sessionStorage.getItem('homeFazSel') || 'todas';
+  var _homeFazObj = fazendas.find(function(f){ return f.id === _homeFazSel; }) || null;
+  window._homeChangeFaz = function(val){
+    sessionStorage.setItem('homeFazSel', val);
+    window.module_home();
+  };
+
+  // Filtrar dados pela fazenda selecionada
+  if(_homeFazSel && _homeFazSel !== 'todas'){
+    safras = safras.filter(function(s){ return s.fazenda_id === _homeFazSel; });
+    lancs = lancs.filter(function(l){ return l.fazenda_id === _homeFazSel; });
+    fechamentos = fechamentos.filter(function(f){ return f.fazenda_id === _homeFazSel; });
+    vendas = vendas.filter(function(v){ return v.fazenda_id === _homeFazSel; });
+  }
+
   // Compute KPIs
   var safrasAbertas = safras.filter(function(s){ return s.status==="aberta"; });
   var insBaixos = insumos.filter(function(i){ return parseFloat(i.estoque_atual||0) < parseFloat(i.estoque_minimo||0); });
@@ -68,44 +84,90 @@ window.module_home = async function() {
   ];
   var dica = dicas[new Date().getDate() % dicas.length];
 
-  // Weather
-  var fazPrinc = fazendas[0];
-  var cidadeClima = fazPrinc ? (fazPrinc.cidade||"Brasil") : "Brasil";
-  var climaHtml = "<div style=\"color:#888;font-size:13px\">Carregando clima...</div>";
+  // Weather — Open-Meteo (gratuito, sem API key)
+  var climaHtml = "<div style=\"color:#ccc;font-size:12px;padding:8px\">Carregando clima...</div>";
+  var _fazCidade = _homeFazObj ? (_homeFazObj.cidade||"") + (_homeFazObj.estado ? ","+_homeFazObj.estado : "") : (fazendas[0] ? (fazendas[0].cidade||"") + (fazendas[0].estado ? ","+fazendas[0].estado : "") : "");
   try {
-    var wResp = await fetch("https://wttr.in/"+encodeURIComponent(cidadeClima)+"?format=j1");
-    var wData = await wResp.json();
-    var cur = wData.current_condition[0];
-    var temp = cur.temp_C;
-    var desc = cur.lang_pt ? cur.lang_pt[0].value : cur.weatherDesc[0].value;
-    var hum = cur.humidity;
-    var wind = cur.windspeedKmph;
-    var wIcon = parseInt(cur.weatherCode)<=113 ? "&#9728;&#65039;" : parseInt(cur.weatherCode)<=176 ? "&#9925;" : "&#127783;&#65039;";
-    climaHtml = "<div style=\"display:flex;align-items:center;gap:12px\">"
-      + "<div style=\"font-size:36px\">"+wIcon+"</div>"
-      + "<div>"
-      + "<div style=\"font-size:28px;font-weight:800;color:#fff\">"+temp+"&deg;C</div>"
-      + "<div style=\"font-size:12px;color:rgba(255,255,255,0.8)\">"+desc+"</div>"
-      + "<div style=\"font-size:11px;color:rgba(255,255,255,0.7)\">&#128167; "+hum+"% &nbsp; &#127788; "+wind+" km/h &nbsp; &#128205; "+cidadeClima+"</div>"
-      + "</div></div>";
-  } catch(e) { climaHtml = "<div style=\"color:rgba(255,255,255,0.6);font-size:12px\">Clima indisponivel</div>"; }
+    var geoUrl = "https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(_fazCidade||"Patrocinio,MG")+"&count=1&language=pt&format=json";
+    var geoResp = await fetch(geoUrl);
+    var geoData = await geoResp.json();
+    var lat = geoData.results && geoData.results[0] ? geoData.results[0].latitude : -18.94;
+    var lon = geoData.results && geoData.results[0] ? geoData.results[0].longitude : -46.99;
+    var meteoUrl = "https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max&current_weather=true&timezone=America%2FSao_Paulo&forecast_days=4";
+    var meteoResp = await fetch(meteoUrl);
+    var meteoData = await meteoResp.json();
+    var wCur = meteoData.current_weather||{};
+    var wDaily = meteoData.daily||{};
+    function _wIcon(code){
+      if(code===0) return "☀️";
+      if(code<=2) return "🌤️";
+      if(code<=3) return "☁️";
+      if(code<=48) return "🌫️";
+      if(code<=57) return "🌧️";
+      if(code<=67) return "🌧️";
+      if(code<=77) return "❄️";
+      if(code<=82) return "🌦️";
+      if(code<=86) return "⛈️";
+      if(code<=99) return "⛈️";
+      return "🌡️";
+    }
+    var dayNames = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+    var forecastHtml = "";
+    for(var _d=1; _d<=3; _d++){
+      if(!wDaily.time || !wDaily.time[_d]) break;
+      var _dt = new Date(wDaily.time[_d]+"T12:00:00");
+      var _dn = dayNames[_dt.getDay()];
+      var _ic = _wIcon(wDaily.weathercode[_d]);
+      var _mx = Math.round(wDaily.temperature_2m_max[_d]);
+      var _mn = Math.round(wDaily.temperature_2m_min[_d]);
+      var _rain = wDaily.precipitation_sum[_d]||0;
+      forecastHtml += "<div style=\"display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,0.1);border-radius:8px;padding:6px 10px;min-width:60px\">"
+        + "<span style=\"font-size:11px;opacity:0.85\">"+_dn+"</span>"
+        + "<span style=\"font-size:22px;margin:2px 0\">"+_ic+"</span>"
+        + "<span style=\"font-size:12px;font-weight:600\">"+_mx+"°/"+_mn+"°</span>"
+        + "<span style=\"font-size:10px;opacity:0.75\">"+_rain.toFixed(0)+"mm</span>"
+        + "</div>";
+    }
+    var curIcon = _wIcon(wCur.weathercode||0);
+    var curTemp = Math.round(wCur.temperature||0);
+    var curWind = Math.round(wCur.windspeed||0);
+    var cidadeLabel = (geoData.results && geoData.results[0]) ? geoData.results[0].name : _fazCidade;
+    climaHtml = "<div style=\"display:flex;flex-direction:column;gap:6px;align-items:flex-end\">"
+      + "<div style=\"display:flex;align-items:center;gap:10px\">"
+      + "<div style=\"font-size:42px\">"+curIcon+"</div>"
+      + "<div><div style=\"font-size:36px;font-weight:700;line-height:1\">"+curTemp+"°C</div>"
+      + "<div style=\"font-size:12px;opacity:0.85\">"+cidadeLabel+" · 💨 "+curWind+" km/h</div></div>"
+      + "</div>"
+      + "<div style=\"display:flex;gap:6px;margin-top:4px\">"+forecastHtml+"</div>"
+      + "</div>";
+  } catch(e) { climaHtml = "<div style=\"color:#ccc;font-size:12px\">Clima indisponível</div>"; }
 
-  var html = "";
-  html += "<div style=\"max-width:1280px;margin:0 auto;padding:0\">"
+// HERO BANNER
+  var _saudacao = (function(){
+    var h = new Date().getHours();
+    if(h < 12) return "Bom dia";
+    if(h < 18) return "Boa tarde";
+    return "Boa noite";
+  })();
+  var _nomeFazExib = _homeFazObj ? _homeFazObj.nome : (fazendas.length === 1 ? fazendas[0].nome : null);
+  var _saudMsg = _nomeFazExib
+    ? _saudacao + ", Produtor! Bem-vindo à <strong>" + _nomeFazExib + "</strong>"
+    : _saudacao + ", Produtor!";
+  var _fazSelectOpts = "<option value=\"todas\"" + (_homeFazSel==="todas"?" selected":"") + ">🏘️ Todas as Fazendas</option>"
+    + fazendas.map(function(f){ return "<option value=\""+f.id+"\"" + (f.id===_homeFazSel?" selected":"") + ">"+f.nome+"</option>"; }).join("");
 
-  // HERO BANNER
-  html += "<div style=\"background:linear-gradient(135deg,#1a4b1a 0%,#2d7d32 60%,#1565c0 100%);border-radius:16px;padding:24px 28px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center\">"
-  html += "<div>"
-  html += "<div style=\"font-size:11px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.6);margin-bottom:4px\">JA AGRO INTELLIGENCE</div>"
-  html += "<div style=\"font-size:28px;font-weight:800;color:#fff\">"+greet+", Produtor! "+emoji+"</div>"
-  html += "<div style=\"font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px\">"+hoje+"</div>"
+  html += "<div style=\"background:linear-gradient(135deg,#1a4b1a 0%,#2d7d32 60%,#1565c0 100%);border-radius:12px;padding:24px 28px;color:#fff;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;\">"
+  html += "<div style=\"flex:1;min-width:220px\">"
+  html += "<div style=\"margin-bottom:10px\">"
+    + "<select onchange=\"window._homeChangeFaz(this.value)\" style=\"background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:#fff;border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer;outline:none\">"
+    + _fazSelectOpts
+    + "</select></div>"
+  html += "<div style=\"font-size:clamp(20px,3vw,28px);font-weight:700\">" + _saudMsg + " 🌾</div>"
   html += "</div>"
-  html += "<div style=\"background:rgba(255,255,255,0.12);border-radius:12px;padding:14px 20px;min-width:220px;text-align:left\">"
   html += climaHtml
   html += "</div>"
-  html += "</div>"
 
-  // 5 KPI CARDS
+// 5 KPI CARDS
   html += "<div style=\"display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px\">"
   function kpiCard(label, val, sub, color) {
     return "<div style=\"background:#fff;border-radius:12px;padding:16px 14px;border-left:4px solid "+color+";box-shadow:0 1px 4px rgba(0,0,0,0.07)\">"
