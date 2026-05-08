@@ -1,159 +1,277 @@
 // ============================================================
-// JA AGRO — Admin Module: Insumos
+// JA AGRO — Admin Module: Insumos (Híbrido Multi-Fazenda)
 // admin-insumos.js
 // ============================================================
 window.module_insumos = async function() {
-  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const fmt = n => n != null ? Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '--';
+  var c = document.getElementById('mainContent');
+  if (!c) return;
+  c.innerHTML = '<div style="padding:20px;text-align:center;color:#888">Carregando insumos...</div>';
 
-  let _insumos = [], _search = '', _filtroTipo = '';
+  var sb = window._sb || window.sb;
+  if (!sb) { c.innerHTML='<div style="padding:20px;color:red">Supabase não inicializado.</div>'; return; }
+
+  var _insumos = [], _fazendas = [], _fazFiltro = 'todas', _busca = '';
 
   async function render() {
-    setLoading('mainContent');
     try {
-      const { data, error } = await sb.from('insumos').select('*').eq('ativo',true).order('nome');
-      if(error) throw error;
-      _insumos = data || [];
+      var [insRes, fazRes] = await Promise.all([
+        sb.from('insumos').select('*').eq('ativo', true).order('nome'),
+        sb.from('fazendas').select('id,nome').eq('ativo', true).order('nome')
+      ]);
+      if (insRes.error) throw insRes.error;
+      _insumos = insRes.data || [];
+      _fazendas = fazRes.data || [];
       renderUI();
     } catch(e) {
-      document.getElementById('mainContent').innerHTML =
-        '<div class="empty-state"><p style="color:var(--danger)">Erro ao carregar insumos: '+esc(e.message)+'</p></div>';
+      c.innerHTML = '<div style="padding:20px;color:red">Erro: '+e.message+'</div>';
     }
   }
 
-  function renderUI() {
-    const stats = calcStats();
-    const tipos = ['','herbicida','fungicida','inseticida','fertilizante','semente','adjuvante','outro'];
-    const tipoOpts = tipos.map(function(t){
-      return '<option value="'+t+'"'+(_filtroTipo===t?' selected':'')+'>'+( t||'Todos os tipos')+'</option>';
-    }).join('');
-
-    document.getElementById('mainContent').innerHTML =
-      '<div class="page-header topbar-content">'+
-      '<div class="topbar-title"><span>Insumos</span></div>'+
-      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
-      '<select class="search-input" id="filtroTipo" onchange="window._insumos_setTipo(this.value)" style="width:180px">'+
-      tipoOpts+
-      '</select>'+
-      '<input class="search-input" id="srchIns" placeholder="Buscar insumo..." value="'+esc(_search)+'" oninput="window._insumos_search(this.value)" style="width:200px"/>'+
-      '<button class="topbar-btn btn-primary" onclick="window._insumos_novo()">+ Novo Insumo</button>'+
-      '</div></div>'+
-      '<div class="stat-row" style="display:flex;gap:12px;flex-wrap:wrap;padding:16px 20px 0">'+
-      '<div class="stat-card green"><div class="stat-card-val">'+stats.total+'</div><div class="stat-card-lbl">Total Insumos</div></div>'+
-      '<div class="stat-card orange"><div class="stat-card-val">'+stats.alerta+'</div><div class="stat-card-lbl">Estoque Baixo</div></div>'+
-      '</div>'+
-      '<div class="table-wrap" style="margin:16px 20px">'+
-      '<table class="data-table"><thead><tr>'+
-      '<th>Nome</th><th>Tipo</th><th>Unidade</th><th>Estoque</th><th>Estoque Min</th><th>Preco (R$)</th><th>Acoes</th>'+
-      '</tr></thead><tbody id="insumosBody">'+
-      renderRows()+
-      '</tbody></table></div>';
+  function kpi(val, label, color, icon) {
+    return '<div style="background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:10px 16px;min-width:110px">'
+      + '<div style="font-size:20px;font-weight:700;color:'+color+'">'+(icon||'')+val+'</div>'
+      + '<div style="font-size:11px;color:#888;text-transform:uppercase;margin-top:2px">'+label+'</div>'
+      + '</div>';
   }
 
   function calcStats() {
-    const vis = filtrados();
-    return {
-      total: vis.length,
-      alerta: vis.filter(function(i){ return i.estoque_min && i.estoque_atual <= i.estoque_min; }).length
-    };
+    var lista = filtrados();
+    var baixo = lista.filter(function(i){ return i.estoque_minimo && i.estoque_atual <= i.estoque_minimo; }).length;
+    var semFaz = lista.filter(function(i){ return !i.fazenda_id; }).length;
+    return { total: lista.length, baixo: baixo, semFazenda: semFaz, porFazenda: lista.length - semFaz };
   }
 
   function filtrados() {
     return _insumos.filter(function(i) {
-      const ok1 = !_filtroTipo || i.categoria === _filtroTipo;
-      const ok2 = !_search || (i.nome||'').toLowerCase().includes(_search.toLowerCase());
-      return ok1 && ok2;
+      var okFaz = _fazFiltro === 'todas' || i.fazenda_id === _fazFiltro || (!i.fazenda_id && _fazFiltro === 'global');
+      var okBusca = !_busca || (i.nome||'').toLowerCase().includes(_busca.toLowerCase()) || (i.categoria||'').toLowerCase().includes(_busca.toLowerCase());
+      return okFaz && okBusca;
     });
   }
 
   function renderRows() {
-    const vis = filtrados();
-    if(!vis.length) return '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px">Nenhum insumo encontrado</td></tr>';
-    return vis.map(function(i) {
-      var estAlerta = i.estoque_min && i.estoque_atual <= i.estoque_min;
-      return '<tr>'+
-      '<td><strong>'+esc(i.nome)+'</strong></td>'+
-      '<td><span class="badge">'+esc(i.categoria||'--')+'</span></td>'+
-      '<td>'+esc(i.unidade||'--')+'</td>'+
-      '<td style="'+(estAlerta?'color:var(--danger);font-weight:600':'')+'">'+fmt(i.estoque_atual)+'</td>'+
-      '<td>'+fmt(i.estoque_min)+'</td>'+
-      '<td>'+fmt(i.preco_unitario)+'</td>'+
-      '<td>'+
-      '<button class="btn-icon" onclick="window._insumos_edit(this)" data-id="'+i.id+'">Editar</button> '+
-      '<button class="btn-icon" onclick="window._insumos_del(this)" data-id="'+i.id+'" data-nome="'+esc(i.nome)+'">Excluir</button>'+
-      '</td></tr>';
+    var lista = filtrados();
+    if (!lista.length) return '<tr><td colspan="7" style="padding:24px;text-align:center;color:#aaa">Nenhum insumo encontrado.</td></tr>';
+    return lista.map(function(ins) {
+      var faz = _fazendas.find(function(f){ return f.id === ins.fazenda_id; });
+      var fazBadge = faz
+        ? '<span style="background:#e8f5e9;color:#2d7d32;border-radius:4px;padding:2px 7px;font-size:11px">'+faz.nome+'</span>'
+        : '<span style="background:#f3e5f5;color:#7b1fa2;border-radius:4px;padding:2px 7px;font-size:11px">🌐 Global</span>';
+      var baixo = ins.estoque_minimo && parseFloat(ins.estoque_atual) <= parseFloat(ins.estoque_minimo);
+      var estCor = baixo ? '#c62828' : '#2d7d32';
+      var idQ = JSON.stringify(ins.id);
+      return '<tr style="border-bottom:1px solid #f0f0f0">'
+        + '<td style="padding:10px"><strong>'+ins.nome+'</strong>'+(ins.fabricante?'<br><span style="color:#aaa;font-size:11px">'+ins.fabricante+'</span>':'')+'</td>'
+        + '<td style="padding:10px"><span style="background:#e3f2fd;color:#1565c0;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600">'+(ins.categoria||'—')+'</span></td>'
+        + '<td style="padding:10px">'+fazBadge+'</td>'
+        + '<td style="padding:10px;text-align:right;font-weight:700;color:'+estCor+'">'+(baixo?'⚠️ ':'')+parseFloat(ins.estoque_atual||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+(ins.unidade||'')+'</td>'
+        + '<td style="padding:10px;text-align:right;color:#999">'+(ins.estoque_minimo||'—')+(ins.estoque_minimo?' '+ins.unidade:'')+'</td>'
+        + '<td style="padding:10px;text-align:right">R$ '+parseFloat(ins.preco_unitario||0).toFixed(2)+'</td>'
+        + '<td style="padding:10px;text-align:center;white-space:nowrap">'
+        + '<button onclick="window._ins_movimentar('+idQ+')" title="Entrada/Saída de Estoque" style="background:#1565c0;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;margin:1px">± Estoque</button> '
+        + '<button onclick="window._ins_transferir('+idQ+')" title="Transferir para outra Fazenda" style="background:#e65100;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;margin:1px">↔ Transf.</button> '
+        + '<button onclick="window._ins_abrirForm('+idQ+')" style="background:#555;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;margin:1px">Editar</button> '
+        + '<button onclick="window._ins_excluir('+idQ+')" style="background:#c62828;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;margin:1px">Excluir</button>'
+        + '</td></tr>';
     }).join('');
   }
 
-  window._insumos_novo = function() { abrirForm(null); };
-  window._insumos_edit = function(btn) { var id = btn.dataset.id; abrirForm(_insumos.find(function(i){return i.id===id;})); };
-  window._insumos_search = function(v) { _search = v; document.getElementById('insumosBody').innerHTML = renderRows(); };
-  window._insumos_setTipo = function(v) { _filtroTipo = v; renderUI(); };
+  function renderUI() {
+    var stats = calcStats();
+    var fazOpts = '<option value="todas">🏘️ Todas as Fazendas</option><option value="global">🌐 Global (sem fazenda)</option>'
+      + _fazendas.map(function(f){ return '<option value="'+f.id+'"'+(f.id===_fazFiltro?' selected':'')+'>'+f.nome+'</option>'; }).join('');
 
-  function abrirForm(ins) {
-    const isNovo = !ins;
-    const tipos = ['herbicida','fungicida','inseticida','fertilizante','semente','adjuvante','outro'];
-    const tipoOpts = tipos.map(function(t){
-      return '<option value="'+t+'"'+(ins&&ins.tipo===t?' selected':'')+'>'+t+'</option>';
-    }).join('');
-    const unidades = ['kg','L','g','mL','sc','un','cx','t'];
-    const unidOpts = unidades.map(function(u){
-      return '<option value="'+u+'"'+(ins&&ins.unidade===u?' selected':'')+'>'+u+'</option>';
-    }).join('');
-
-    showModal(isNovo ? '+ Novo Insumo' : 'Editar Insumo',
-      '<div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
-      '<div class="form-field" style="grid-column:1/-1"><label>Nome *</label>'+
-      '<input id="ins_nome" value="'+esc(ins&&ins.nome||'')+'" placeholder="Ex: Glifosato 480 SL"/></div>'+
-      '<div class="form-field"><label>Categoria *</label>'+
-      '<select id="ins_categoria"><option value="">Selecione...</option>'+tipoOpts+'</select></div>'+
-      '<div class="form-field"><label>Unidade *</label>'+
-      '<select id="ins_unidade"><option value="">Selecione...</option>'+unidOpts+'</select></div>'+
-      '<div class="form-field"><label>Estoque Atual</label>'+
-      '<input id="ins_estoque" type="number" step="0.01" min="0" value="'+(ins&&ins.estoque_atual||0)+'"/></div>'+
-      '<div class="form-field"><label>Estoque Minimo</label>'+
-      '<input id="ins_estoque_min" type="number" step="0.01" min="0" value="'+(ins&&ins.estoque_min||0)+'"/></div>'+
-      '<div class="form-field"><label>Preco Unitario (R$)</label>'+
-      '<input id="ins_preco" type="number" step="0.01" min="0" value="'+(ins&&ins.preco_unitario||0)+'"/></div>'+
-      '<div class="form-field" style="grid-column:1/-1"><label>Fabricante</label>'+
-      '<input id="ins_fab" value="'+esc(ins&&ins.fabricante||'')+'" placeholder="Ex: Bayer, Syngenta..."/></div>'+
-      '</div>',
-      async function() {
-        const nome   = document.getElementById('ins_nome').value.trim();
-        const tipo   = document.getElementById('ins_categoria').value;
-        const unid   = document.getElementById('ins_unidade').value;
-        const est    = parseFloat(document.getElementById('ins_estoque').value) || 0;
-        const estMin = parseFloat(document.getElementById('ins_estoque_minimo').value) || 0;
-        const preco  = parseFloat(document.getElementById('ins_preco').value) || null;
-        const fab    = document.getElementById('ins_fab').value.trim() || null;
-
-        if(!nome) { toast('Informe o nome do insumo','bad'); return; }
-        if(!tipo) { toast('Selecione o tipo','bad'); return; }
-        if(!unid) { toast('Selecione a unidade','bad'); return; }
-
-        const payload = { nome, tipo, unidade: unid, estoque_atual: est, estoque_min: estMin, preco_unitario: preco, fabricante: fab };
-        const { error } = isNovo
-          ? await sb.from('insumos').insert({ ...payload, ativo: true })
-          : await sb.from('insumos').update(payload).eq('id', ins.id);
-        if(error) { toast('Erro: '+error.message,'bad'); return; }
-        toast(isNovo ? 'Insumo cadastrado!' : 'Insumo atualizado!','ok');
-        closeModal(); render();
-      }
-    );
-    setTimeout(function(){ var el = document.getElementById('ins_nome'); if(el) el.focus(); }, 100);
+    c.innerHTML = '<div style="padding:16px 20px 8px">'
+      + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">'
+      + '<span style="font-weight:700;font-size:15px;color:#333">Insumos</span>'
+      + '<select id="ins_fazFiltro" onchange="window._ins_setFaz(this.value)" style="border:1px solid #ccc;border-radius:6px;padding:4px 10px;font-size:13px;background:#fff">'+fazOpts+'</select>'
+      + '<input id="ins_busca" type="text" placeholder="Buscar insumo..." value="'+_busca+'" oninput="window._ins_setBusca(this.value)" style="border:1px solid #ccc;border-radius:6px;padding:5px 10px;font-size:13px;min-width:180px">'
+      + '<button onclick="window._ins_abrirForm(null)" style="margin-left:auto;background:#2d7d32;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:13px;cursor:pointer;font-weight:600">+ Novo Insumo</button>'
+      + '</div>'
+      + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+      + kpi(stats.total,'Total Insumos','#1565c0')
+      + kpi(stats.baixo,'Estoque Baixo','#c62828',stats.baixo>0?'⚠️ ':'')
+      + kpi(stats.semFazenda,'Global (sem fazenda)','#7b1fa2')
+      + kpi(stats.porFazenda,'Com Fazenda','#2d7d32')
+      + '</div>'
+      + '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'
+      + '<thead><tr style="background:#f5f5f5;border-bottom:2px solid #e0e0e0">'
+      + '<th style="padding:8px 10px;text-align:left;color:#555;font-weight:600">NOME</th>'
+      + '<th style="padding:8px 10px;text-align:left;color:#555;font-weight:600">TIPO</th>'
+      + '<th style="padding:8px 10px;text-align:left;color:#555;font-weight:600">FAZENDA</th>'
+      + '<th style="padding:8px 10px;text-align:right;color:#555;font-weight:600">ESTOQUE</th>'
+      + '<th style="padding:8px 10px;text-align:right;color:#555;font-weight:600">EST. MÍN</th>'
+      + '<th style="padding:8px 10px;text-align:right;color:#555;font-weight:600">PREÇO (R$)</th>'
+      + '<th style="padding:8px 10px;text-align:center;color:#555;font-weight:600">AÇÕES</th>'
+      + '</tr></thead>'
+      + '<tbody id="ins_tbody">'+renderRows()+'</tbody>'
+      + '</table></div></div>';
   }
 
-  window._insumos_del = function(btn) {
-    var id = btn.dataset.id;
-    var nome = btn.dataset.nome;
-    showConfirm('Excluir insumo <strong>'+esc(nome)+'</strong>?',
-      async function() {
-        const { error } = await sb.from('insumos').update({ ativo: false }).eq('id', id);
-        if(error) { toast('Erro: '+error.message,'bad'); return; }
-        toast('Insumo removido','ok'); render();
-      }
-    );
+  window._ins_setFaz = function(v) { _fazFiltro = v; var tb=document.getElementById('ins_tbody'); if(tb) tb.innerHTML=renderRows(); };
+  window._ins_setBusca = function(v) { _busca = v; var tb=document.getElementById('ins_tbody'); if(tb) tb.innerHTML=renderRows(); };
+
+  // MOVIMENTAÇÃO DE ESTOQUE
+  window._ins_movimentar = function(insId) {
+    var ins = _insumos.find(function(i){ return i.id===insId; });
+    if (!ins) return;
+    var faz = _fazendas.find(function(f){ return f.id===ins.fazenda_id; });
+    var fazOpts = '<option value="">— Global (sem fazenda) —</option>'
+      + _fazendas.map(function(f){ return '<option value="'+f.id+'"'+(f.id===ins.fazenda_id?' selected':'')+'>'+f.nome+'</option>'; }).join('');
+    var old = document.getElementById('ins_modal_mov'); if(old) old.remove();
+    var modal = document.createElement('div');
+    modal.id = 'ins_modal_mov';
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center';
+    modal.innerHTML = '<div style="background:#fff;border-radius:10px;padding:24px;width:360px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,0.2)">'
+      + '<h3 style="margin:0 0 6px;font-size:15px;color:#1565c0">± Movimentar Estoque</h3>'
+      + '<p style="font-size:13px;font-weight:600;margin:0 0 4px">'+ins.nome+'</p>'
+      + '<p style="font-size:12px;color:#666;margin:0 0 14px">Estoque atual: <strong>'+parseFloat(ins.estoque_atual||0).toFixed(2)+' '+(ins.unidade||'')+'</strong>'+(faz?' • '+faz.nome:' • 🌐 Global')+'</p>'
+      + '<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Tipo de Movimentação</label>'
+      + '<select id="mov_tipo" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'
+      + '<option value="entrada">📥 Entrada (Compra / Recebimento)</option>'
+      + '<option value="saida">📤 Saída (Consumo / Aplicação)</option>'
+      + '<option value="ajuste">🔧 Ajuste de Inventário (define valor absoluto)</option>'
+      + '</select></div>'
+      + '<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Quantidade ('+ins.unidade+')</label>'
+      + '<input id="mov_qtd" type="number" min="0" step="0.01" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;box-sizing:border-box"></div>'
+      + '<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Fazenda do Estoque</label>'
+      + '<select id="mov_fazenda" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'+fazOpts+'</select></div>'
+      + '<div style="margin-bottom:14px"><label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Motivo / Observação</label>'
+      + '<input id="mov_motivo" type="text" placeholder="Ex: Compra NF 1234, Aplicação talhão T-01..." style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;box-sizing:border-box"></div>'
+      + '<div style="display:flex;gap:8px;justify-content:flex-end">'
+      + '<button onclick="document.getElementById('ins_modal_mov').remove()" style="border:1px solid #ccc;background:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">Cancelar</button>'
+      + '<button onclick="window._ins_salvarMov(''+insId+'')" style="background:#1565c0;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">Confirmar</button>'
+      + '</div></div>';
+    document.body.appendChild(modal);
   };
 
-  render();
+  window._ins_salvarMov = async function(insId) {
+    var tipo = document.getElementById('mov_tipo').value;
+    var qtd = parseFloat(document.getElementById('mov_qtd').value) || 0;
+    var novFazId = document.getElementById('mov_fazenda').value || null;
+    if (qtd <= 0) { alert('Informe uma quantidade válida.'); return; }
+    var ins = _insumos.find(function(i){ return i.id===insId; });
+    var novoEst = parseFloat(ins.estoque_atual||0);
+    if (tipo==='entrada') novoEst += qtd;
+    else if (tipo==='saida') novoEst = Math.max(0, novoEst - qtd);
+    else novoEst = qtd;
+    var upd = { estoque_atual: novoEst, fazenda_id: novFazId, atualizado_em: new Date().toISOString() };
+    var {error} = await sb.from('insumos').update(upd).eq('id', insId);
+    if (error) { alert('Erro: '+error.message); return; }
+    document.getElementById('ins_modal_mov').remove();
+    await render();
+  };
+
+  // TRANSFERÊNCIA ENTRE FAZENDAS
+  window._ins_transferir = function(insId) {
+    var ins = _insumos.find(function(i){ return i.id===insId; });
+    if (!ins) return;
+    var fazOrigem = _fazendas.find(function(f){ return f.id===ins.fazenda_id; });
+    var destOpts = _fazendas.filter(function(f){ return f.id!==ins.fazenda_id; })
+      .map(function(f){ return '<option value="'+f.id+'">'+f.nome+'</option>'; }).join('');
+    if (!destOpts) { alert('Não há outras fazendas disponíveis.'); return; }
+    var old = document.getElementById('ins_modal_transf'); if(old) old.remove();
+    var modal = document.createElement('div');
+    modal.id = 'ins_modal_transf';
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center';
+    modal.innerHTML = '<div style="background:#fff;border-radius:10px;padding:24px;width:380px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,0.2)">'
+      + '<h3 style="margin:0 0 4px;font-size:15px;color:#e65100">↔ Transferir Insumo entre Fazendas</h3>'
+      + '<p style="font-size:13px;font-weight:600;margin:0 0 12px">'+ins.nome+'</p>'
+      + '<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:12px">'
+      + '📍 <strong>Origem:</strong> '+(fazOrigem?fazOrigem.nome:'🌐 Global')+'&nbsp;&nbsp;|&nbsp;&nbsp;Estoque disponível: <strong>'+parseFloat(ins.estoque_atual||0).toFixed(2)+' '+(ins.unidade||'')+'</strong></div>'
+      + '<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Fazenda Destino</label>'
+      + '<select id="transf_dest" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'+destOpts+'</select></div>'
+      + '<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Quantidade a Transferir ('+ins.unidade+')</label>'
+      + '<input id="transf_qtd" type="number" min="0.01" step="0.01" max="'+ins.estoque_atual+'" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;box-sizing:border-box"></div>'
+      + '<div style="margin-bottom:14px"><label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Observação (opcional)</label>'
+      + '<input id="transf_obs" type="text" placeholder="Ex: Abastecimento safra verão..." style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;box-sizing:border-box"></div>'
+      + '<p style="font-size:11px;color:#888;margin:0 0 12px">A transferência reduz o estoque da origem e aumenta (ou cria) na fazenda destino.</p>'
+      + '<div style="display:flex;gap:8px;justify-content:flex-end">'
+      + '<button onclick="document.getElementById('ins_modal_transf').remove()" style="border:1px solid #ccc;background:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">Cancelar</button>'
+      + '<button onclick="window._ins_confirmarTransf(''+insId+'')" style="background:#e65100;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">Transferir →</button>'
+      + '</div></div>';
+    document.body.appendChild(modal);
+  };
+
+  window._ins_confirmarTransf = async function(insId) {
+    var qtd = parseFloat(document.getElementById('transf_qtd').value)||0;
+    var destId = document.getElementById('transf_dest').value;
+    if (qtd<=0){ alert('Informe uma quantidade válida.'); return; }
+    var ins = _insumos.find(function(i){ return i.id===insId; });
+    if (qtd>parseFloat(ins.estoque_atual||0)){ alert('Quantidade maior que o estoque disponível ('+ins.estoque_atual+' '+ins.unidade+').'); return; }
+    var insDestino = _insumos.find(function(i){ return i.nome===ins.nome && i.fazenda_id===destId && i.ativo; });
+    try {
+      if (insDestino) {
+        await sb.from('insumos').update({ estoque_atual: parseFloat(insDestino.estoque_atual||0)+qtd, atualizado_em: new Date().toISOString() }).eq('id', insDestino.id);
+      } else {
+        await sb.from('insumos').insert([{ nome:ins.nome, categoria:ins.categoria, unidade:ins.unidade, principio_ativo:ins.principio_ativo, fabricante:ins.fabricante, registro_mapa:ins.registro_mapa, estoque_atual:qtd, estoque_minimo:ins.estoque_minimo, preco_unitario:ins.preco_unitario, fazenda_id:destId, ativo:true }]);
+      }
+      await sb.from('insumos').update({ estoque_atual: parseFloat(ins.estoque_atual||0)-qtd, atualizado_em: new Date().toISOString() }).eq('id', insId);
+      document.getElementById('ins_modal_transf').remove();
+      await render();
+    } catch(e){ alert('Erro: '+e.message); }
+  };
+
+  // FORM NOVO/EDITAR
+  window._ins_abrirForm = function(insId) {
+    var ins = insId ? _insumos.find(function(i){ return i.id===insId; }) : null;
+    var v = ins||{};
+    var fazOpts = '<option value="">— Global (Todas as Fazendas) —</option>'
+      + _fazendas.map(function(f){ return '<option value="'+f.id+'"'+(f.id===v.fazenda_id?' selected':'')+'>'+f.nome+'</option>'; }).join('');
+    var cats = ['FERTILIZANTE','DEFENSIVO','HERBICIDA','INSETICIDA','FUNGICIDA','SEMENTE','COMBUSTÍVEL','LUBRIFICANTE','OUTRO'];
+    var unds = ['kg','L','sc','t','unid','cx','gl','m³'];
+    var old = document.getElementById('ins_modal_form'); if(old) old.remove();
+    var modal = document.createElement('div');
+    modal.id = 'ins_modal_form';
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.innerHTML = '<div style="background:#fff;border-radius:10px;padding:24px;width:440px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2)">'
+      + '<h3 style="margin:0 0 16px;font-size:15px;color:#333">'+(ins?'Editar':'Novo')+' Insumo</h3>'
+      + '<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Nome *</label><input id="ins_nome" type="text" value="'+(v.nome||'')+'" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;box-sizing:border-box"></div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
+      + '<div><label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Categoria</label><select id="ins_cat" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'+cats.map(function(cat){ return '<option value="'+cat+'"'+(cat===v.categoria?' selected':'')+'>'+cat+'</option>'; }).join('')+'</select></div>'
+      + '<div><label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Unidade</label><select id="ins_und" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'+unds.map(function(u){ return '<option value="'+u+'"'+(u===v.unidade?' selected':'')+'>'+u+'</option>'; }).join('')+'</select></div>'
+      + '</div>'
+      + '<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;display:block;margin-bottom:4px">🏘️ Fazenda (estoque pertence a)</label><select id="ins_faz" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'+fazOpts+'</select><p style="font-size:11px;color:#888;margin:3px 0 0">Vazio = Global (visível em todas as fazendas)</p></div>'
+      + '<div style="margin-bottom:10px"><label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Fabricante</label><input id="ins_fab" type="text" value="'+(v.fabricante||'')+'" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;box-sizing:border-box"></div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">'
+      + '<div><label style="font-size:11px;color:#555;display:block;margin-bottom:3px">Estoque Atual</label><input id="ins_est" type="number" min="0" step="0.01" value="'+(v.estoque_atual||0)+'" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:6px 8px;font-size:13px;box-sizing:border-box"></div>'
+      + '<div><label style="font-size:11px;color:#555;display:block;margin-bottom:3px">Estoque Mín.</label><input id="ins_estmin" type="number" min="0" step="0.01" value="'+(v.estoque_minimo||'')+'" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:6px 8px;font-size:13px;box-sizing:border-box"></div>'
+      + '<div><label style="font-size:11px;color:#555;display:block;margin-bottom:3px">Preço (R$)</label><input id="ins_preco" type="number" min="0" step="0.01" value="'+(v.preco_unitario||'')+'" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:6px 8px;font-size:13px;box-sizing:border-box"></div>'
+      + '</div>'
+      + '<div style="display:flex;gap:8px;justify-content:flex-end">'
+      + '<button onclick="document.getElementById('ins_modal_form').remove()" style="border:1px solid #ccc;background:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">Cancelar</button>'
+      + '<button onclick="window._ins_salvar(''+( insId||''  )+'')" style="background:#2d7d32;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">Salvar</button>'
+      + '</div></div>';
+    document.body.appendChild(modal);
+  };
+
+  window._ins_salvar = async function(insId) {
+    var dados = {
+      nome: (document.getElementById('ins_nome').value||'').trim(),
+      categoria: document.getElementById('ins_cat').value,
+      unidade: document.getElementById('ins_und').value,
+      fazenda_id: document.getElementById('ins_faz').value || null,
+      fabricante: document.getElementById('ins_fab').value.trim() || null,
+      estoque_atual: parseFloat(document.getElementById('ins_est').value)||0,
+      estoque_minimo: parseFloat(document.getElementById('ins_estmin').value)||null,
+      preco_unitario: parseFloat(document.getElementById('ins_preco').value)||null,
+      ativo: true, atualizado_em: new Date().toISOString()
+    };
+    if (!dados.nome){ alert('Informe o nome do insumo.'); return; }
+    var {error} = insId
+      ? await sb.from('insumos').update(dados).eq('id', insId)
+      : await sb.from('insumos').insert([dados]);
+    if (error){ alert('Erro: '+error.message); return; }
+    document.getElementById('ins_modal_form').remove();
+    await render();
+  };
+
+  window._ins_excluir = async function(insId) {
+    if (!confirm('Excluir este insumo? Esta ação não pode ser desfeita.')) return;
+    var {error} = await sb.from('insumos').update({ativo:false,atualizado_em:new Date().toISOString()}).eq('id',insId);
+    if (error){ alert('Erro: '+error.message); return; }
+    await render();
+  };
+
+  await render();
 };
