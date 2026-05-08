@@ -147,6 +147,7 @@ CREATE TABLE IF NOT EXISTS insumos (
 CREATE TABLE IF NOT EXISTS maquinas (
   id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   fazenda_id       UUID REFERENCES fazendas(id) ON DELETE CASCADE,
+  fazenda_atual_id    UUID REFERENCES fazendas(id) ON DELETE SET NULL,
   nome             TEXT NOT NULL,
   tipo             TEXT,
   marca            TEXT,
@@ -617,3 +618,10 @@ CREATE POLICY IF NOT EXISTS "qualidade_registro_select" ON qualidade_registro FO
 CREATE POLICY IF NOT EXISTS "qualidade_registro_insert" ON qualidade_registro FOR INSERT WITH CHECK (true);
 CREATE POLICY IF NOT EXISTS "qualidade_registro_update" ON qualidade_registro FOR UPDATE USING (true);
 CREATE POLICY IF NOT EXISTS "qualidade_registro_delete" ON qualidade_registro FOR DELETE USING (true);
+
+
+-- ============================================================
+-- MIGRAÇÃO: Adicionar campo fazenda_atual_id em maquinas
+-- Execute este SQL no Supabase SQL Editor se a tabela já existir:
+-- ALTER TABLE maquinas ADD COLUMN IF NOT EXISTS fazenda_atual_id UUID REFERENCES fazendas(id) ON DELETE SET NULL;
+-- ============================================================
