@@ -142,7 +142,8 @@ window.module_home = async function() {
       + "</div>";
   } catch(e) { climaHtml = "<div style=\"color:#ccc;font-size:12px\">Clima indisponível</div>"; }
 
-// HERO BANNER
+var html = "";
+  // HERO BANNER
   var _saudacao = (function(){
     var h = new Date().getHours();
     if(h < 12) return "Bom dia";
