@@ -509,3 +509,111 @@ COMMENT ON TABLE insumos    IS 'Produtos agrícolas com controle de estoque';
 COMMENT ON TABLE maquinas   IS 'Equipamentos e veículos das fazendas';
 COMMENT ON TABLE operadores IS 'Funcionários e operadores de máquinas';
 COMMENT ON TABLE manutencoes IS 'Histórico de manutenções de máquinas';
+
+
+-- ============================================================
+-- TABELA: vendas_graos
+-- Contratos de venda de graos (disponivel, forward, exportacao, etc.)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS vendas_graos (
+  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  fazenda_id            UUID NOT NULL REFERENCES fazendas(id) ON DELETE CASCADE,
+  safra_id              UUID REFERENCES safras(id) ON DELETE SET NULL,
+  cultura               TEXT,
+  tipo_contrato         TEXT NOT NULL DEFAULT 'disponivel'
+    CHECK (tipo_contrato IN ('disponivel','forward','troca','fixacao','cbot','exportacao')),
+  quantidade_sc         NUMERIC(12,2) NOT NULL DEFAULT 0,
+  preco_saca            NUMERIC(10,2) DEFAULT 0,
+  data_contrato         DATE,
+  data_entrega          DATE,
+  comprador             TEXT,
+  numero_contrato       TEXT,
+  status                TEXT NOT NULL DEFAULT 'aberto'
+    CHECK (status IN ('aberto','parcialmente_entregue','entregue','cancelado')),
+  qualidade_registro_id UUID REFERENCES qualidade_registro(id) ON DELETE SET NULL,
+  checklist_exportacao  JSONB,
+  observacoes           TEXT,
+  criado_em             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  atualizado_em         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_vendas_graos_fazenda ON vendas_graos(fazenda_id);
+CREATE INDEX IF NOT EXISTS idx_vendas_graos_safra ON vendas_graos(safra_id);
+CREATE INDEX IF NOT EXISTS idx_vendas_graos_status ON vendas_graos(status);
+
+-- ============================================================
+-- TABELA: entregas_graos
+-- Entregas parciais ou totais vinculadas a um contrato de venda
+-- ============================================================
+CREATE TABLE IF NOT EXISTS entregas_graos (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  venda_id      UUID NOT NULL REFERENCES vendas_graos(id) ON DELETE CASCADE,
+  talhao_id     UUID REFERENCES talhoes(id) ON DELETE SET NULL,
+  quantidade_sc NUMERIC(12,2) NOT NULL DEFAULT 0,
+  data_entrega  DATE,
+  nota_fiscal   TEXT,
+  observacoes   TEXT,
+  criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_entregas_graos_venda ON entregas_graos(venda_id);
+
+-- ============================================================
+-- TABELA: qualidade_registro
+-- Analises de qualidade por lote (cafe, soja, milho, cana)
+-- Reutilizada pelos modulos admin-qualidade.js e admin-qualidade-lotes.js
+-- ============================================================
+CREATE TABLE IF NOT EXISTS qualidade_registro (
+  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  fazenda_id       UUID NOT NULL REFERENCES fazendas(id) ON DELETE CASCADE,
+  safra_id         UUID REFERENCES safras(id) ON DELETE SET NULL,
+  talhao_id        UUID REFERENCES talhoes(id) ON DELETE SET NULL,
+  cultura          TEXT NOT NULL,
+  data_registro    DATE NOT NULL DEFAULT CURRENT_DATE,
+  dados_qualidade  JSONB NOT NULL DEFAULT '{}',
+  observacoes      TEXT,
+  responsavel      TEXT,
+  criado_em        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  atualizado_em    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_qualidade_fazenda ON qualidade_registro(fazenda_id);
+CREATE INDEX IF NOT EXISTS idx_qualidade_safra ON qualidade_registro(safra_id);
+CREATE INDEX IF NOT EXISTS idx_qualidade_cultura ON qualidade_registro(cultura);
+
+-- ============================================================
+-- ALTER: Colunas de certificacao nas tabelas fazendas e talhoes
+-- (adicionadas pelo modulo admin-certificacao.js)
+-- ============================================================
+ALTER TABLE fazendas ADD COLUMN IF NOT EXISTS certificada BOOLEAN DEFAULT FALSE;
+ALTER TABLE fazendas ADD COLUMN IF NOT EXISTS tipo_certificacao TEXT
+  CHECK (tipo_certificacao IN ('organico','globalgap','rainforest'));
+ALTER TABLE talhoes ADD COLUMN IF NOT EXISTS segue_certificacao BOOLEAN DEFAULT TRUE;
+ALTER TABLE insumos ADD COLUMN IF NOT EXISTS certificacao_permitida BOOLEAN DEFAULT TRUE;
+
+-- ============================================================
+-- RLS: vendas_graos
+-- ============================================================
+ALTER TABLE vendas_graos ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS "vendas_graos_select" ON vendas_graos FOR SELECT USING (true);
+CREATE POLICY IF NOT EXISTS "vendas_graos_insert" ON vendas_graos FOR INSERT WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS "vendas_graos_update" ON vendas_graos FOR UPDATE USING (true);
+CREATE POLICY IF NOT EXISTS "vendas_graos_delete" ON vendas_graos FOR DELETE USING (true);
+
+-- ============================================================
+-- RLS: entregas_graos
+-- ============================================================
+ALTER TABLE entregas_graos ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS "entregas_graos_select" ON entregas_graos FOR SELECT USING (true);
+CREATE POLICY IF NOT EXISTS "entregas_graos_insert" ON entregas_graos FOR INSERT WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS "entregas_graos_update" ON entregas_graos FOR UPDATE USING (true);
+CREATE POLICY IF NOT EXISTS "entregas_graos_delete" ON entregas_graos FOR DELETE USING (true);
+
+-- ============================================================
+-- RLS: qualidade_registro
+-- ============================================================
+ALTER TABLE qualidade_registro ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS "qualidade_registro_select" ON qualidade_registro FOR SELECT USING (true);
+CREATE POLICY IF NOT EXISTS "qualidade_registro_insert" ON qualidade_registro FOR INSERT WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS "qualidade_registro_update" ON qualidade_registro FOR UPDATE USING (true);
+CREATE POLICY IF NOT EXISTS "qualidade_registro_delete" ON qualidade_registro FOR DELETE USING (true);
