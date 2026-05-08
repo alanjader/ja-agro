@@ -17,7 +17,7 @@ window.module_dashboard = async function() {
   // Load data in parallel
   var [fazRes, lancRes, safRes, talRes, insRes, fechRes, vendRes] = await Promise.all([
     sb.from("fazendas").select("id,nome,area_total_ha").eq("ativo",true).order("nome"),
-    sb.from("lancamentos").select("id,tipo,custo_total,data_lancamento,descricao,insumo_id,operador_id,maquina_id,categoria_id,safra_id").eq("status","confirmado").order("data_lancamento",{ascending:true}).limit(500),
+    sb.from("lancamentos").select("id,tipo,custo_total,data_lancamento,descricao,insumo_id,operador_id,maquina_id,categoria_id,safra_id,fazenda_id").eq("status","confirmado").order("data_lancamento",{ascending:true}).limit(500),
     sb.from("safras").select("*").order("ano_agricola",{ascending:false}).limit(20),
     sb.from("talhoes").select("id,nome,area_ha,fazenda_id").eq("ativo",true),
     sb.from("insumos").select("id,nome,estoque_atual,estoque_minimo,preco_unitario").eq("ativo",true),
@@ -47,6 +47,7 @@ window.module_dashboard = async function() {
     insumos = insumos.filter(function(i){ return i.fazenda_id === _dashFazSel; });
     fechamentos = fechamentos.filter(function(f){ return f.fazenda_id === _dashFazSel; });
     vendas = vendas.filter(function(v){ return v.fazenda_id === _dashFazSel; });
+    lancs = lancs.filter(function(l){ return l.fazenda_id === _dashFazSel; });
   }
 
   // Helper functions
@@ -130,7 +131,7 @@ window.module_dashboard = async function() {
       +"<div style=\"font-size:20px;font-weight:800;color:"+color+";margin:4px 0\">"+(arrow||"")+val+"</div>"
       +"<div style=\"font-size:11px;color:#999\">"+sub+"</div></div>";
   }
-  html += kpi("Fazendas",fazendas.length,"Ativas","#2d7d32","&#127968; ");
+  html += kpi("Fazendas",(_dashFazSel !== 'todas' ? 1 : fazendas.length),"Ativas","#2d7d32","&#127968; ");
   html += kpi("Lancamentos",lancs.length,"Confirmados","#1565c0","&#128196; ");
   html += kpi("Custo Total",fmtBrl(totalDesp),"Despesas","#c62828","");
   html += kpi("Receita Vendas",fmtBrl(totalVendas),"Contratos","#2d7d32","");
