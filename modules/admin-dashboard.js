@@ -33,6 +33,22 @@ window.module_dashboard = async function() {
   var fechamentos = (fechRes.data || []);
   var vendas = (vendRes.data || []);
 
+  // Fazenda selecionada (compartilhada com a Home)
+  var _dashFazSel = sessionStorage.getItem('homeFazSel') || 'todas';
+  var _dashFazObj = fazendas.find(function(f){ return f.id === _dashFazSel; }) || null;
+  window._dashChangeFaz = function(val){
+    sessionStorage.setItem('homeFazSel', val);
+    window.module_dashboard();
+  };
+
+  // Filtrar dados pela fazenda selecionada
+  if(_dashFazSel && _dashFazSel !== 'todas'){
+    safras = safras.filter(function(s){ return s.fazenda_id === _dashFazSel; });
+    insumos = insumos.filter(function(i){ return i.fazenda_id === _dashFazSel; });
+    fechamentos = fechamentos.filter(function(f){ return f.fazenda_id === _dashFazSel; });
+    vendas = vendas.filter(function(v){ return v.fazenda_id === _dashFazSel; });
+  }
+
   // Helper functions
   function fmtBrl(n) { return "R$ " + parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
   function fmtSc(n) { return parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1}); }
@@ -89,6 +105,14 @@ window.module_dashboard = async function() {
 
   // RENDER HTML
   var html = "";
+  // Seletor de fazenda no dashboard
+  var _dashFazSelectOpts = "<option value=\"todas\"" + (_dashFazSel==="todas"?" selected":"") + ">🏘️ Todas as Fazendas</option>"
+    + fazendas.map(function(f){ return "<option value=\""+f.id+"\"" + (f.id===_dashFazSel?" selected":"") + ">"+f.nome+"</option>"; }).join("");
+  var _dashFazLabel = _dashFazObj ? " — " + _dashFazObj.nome : "";
+  html += "<div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px\">"
+       + "<h2 style=\"margin:0;font-size:20px\">📊 Dashboard Analytics · Gráficos e KPIs" + _dashFazLabel + "</h2>"
+       + "<select onchange=\"window._dashChangeFaz(this.value)\" style=\"border:1px solid #ccc;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;\">"
+       + _dashFazSelectOpts + "</select></div>";
   html += "<div style=\"max-width:1280px;margin:0 auto;padding:0\">"
 
   // Header
