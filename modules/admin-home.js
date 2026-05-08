@@ -160,7 +160,7 @@ var html = "";
   html += "<div style=\"background:linear-gradient(135deg,#1a4b1a 0%,#2d7d32 60%,#1565c0 100%);border-radius:12px;padding:24px 28px;color:#fff;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;\">"
   html += "<div style=\"flex:1;min-width:220px\">"
   html += "<div style=\"margin-bottom:10px\">"
-    + "<select onchange=\"window._homeChangeFaz(this.value)\" style=\"background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:#fff;border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer;outline:none\">"
+    + "<select onchange=\"window._homeChangeFaz(this.value)\" style=\"background:#1b4332;border:2px solid rgba(255,255,255,0.6);color:#fff;border-radius:8px;padding:5px 14px;font-size:13px;cursor:pointer;outline:none;min-width:220px\">"
     + _fazSelectOpts
     + "</select></div>"
   html += "<div style=\"font-size:clamp(20px,3vw,28px);font-weight:700\">" + _saudMsg + " 🌾</div>"
