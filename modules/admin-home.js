@@ -1,7 +1,7 @@
 window.module_home = async function() {
   var c = document.getElementById("mainContent");
   if (!c) return;
-  c.innerHTML = "<div style=\"padding:20px;text-align:center;color:#888\">Carregando inteligencia da operacao...</div>";
+  c.innerHTML = "<div style=\"padding:20px;text-align:center;color:#888\">Carregando inteligência da operação...</div>";
 
   // Helper functions
   function fmtBrl(n) { return "R$ " + parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -21,11 +21,11 @@ window.module_home = async function() {
     sb.from("fazendas").select("id,nome,cidade,estado,area_total_ha,certificada").eq("ativo",true).order("nome"),
     sb.from("usuarios").select("id").eq("ativo",true),
     sb.from("talhoes").select("id,nome,area_ha,fazenda_id").eq("ativo",true),
-    sb.from("safras").select("id,nome,cultura,ano_agricola,status,fazenda_id,producao_sc,produtividade_sc_ha,custo_total,receita_total").order("criado_em",{ascending:false}),
+    sb.from("safras").select("id,nome,cultura,ano_agricola,status,fazenda_id,produção_sc,produtividade_sc_ha,custo_total,receita_total").order("criado_em",{ascending:false}),
     sb.from("lancamentos").select("id,tipo,custo_total,data_lancamento,descricao,status").eq("status","confirmado").order("data_lancamento",{ascending:false}).limit(8),
     sb.from("insumos").select("id,nome,estoque_atual,estoque_minimo").eq("ativo",true),
     sb.from("fechamento_safra").select("*,safras(nome,cultura,ano_agricola),fazendas(nome)").order("criado_em",{ascending:false}).limit(5),
-    sb.from("vendas_graos").select("id,quantidade_sc,preco_saca,status,cultura,safra_id,fazenda_id").order("criado_em",{ascending:false}).limit(20)
+    sb.from("vendas_grãos").select("id,quantidade_sc,preco_saca,status,cultura,safra_id,fazenda_id").order("criado_em",{ascending:false}).limit(20)
   ]);
 
   var fazendas = (fazRes.data || []);
@@ -74,7 +74,7 @@ window.module_home = async function() {
   // Dicas do agronomo
   var dicas = [
     "&#127807; Monitoramento frequente de pragas reduz custos de controle em ate 40%.",
-    "&#128167; Analise de solo a cada 2 anos garante adubacao mais precisa e economica.",
+    "&#128167; Análise de solo a cada 2 anos garante adubacao mais precisa e economica.",
     "&#127775; Semeadura na epoca correta pode aumentar a produtividade em 15-20%.",
     "&#9748; A irrigacao suplementar no periodo critico valoriza 5 sc/ha em media.",
     "&#128300; Variedades resistentes reduzem custo de fungicidas em ate 30%.",
@@ -84,7 +84,7 @@ window.module_home = async function() {
   ];
   var dica = dicas[new Date().getDate() % dicas.length];
 
-  // Weather — Open-Meteo (gratuito, sem API key)
+  // Weather â Open-Meteo (gratuito, sem API key)
   var climaHtml = "<div style=\"color:#ccc;font-size:12px;padding:8px\">Carregando clima...</div>";
   var _fazCidade = _homeFazObj ? (_homeFazObj.cidade||"") + (_homeFazObj.estado ? ","+_homeFazObj.estado : "") : (fazendas[0] ? (fazendas[0].cidade||"") + (fazendas[0].estado ? ","+fazendas[0].estado : "") : "");
   try {
@@ -99,19 +99,19 @@ window.module_home = async function() {
     var wCur = meteoData.current_weather||{};
     var wDaily = meteoData.daily||{};
     function _wIcon(code){
-      if(code===0) return "☀️";
-      if(code<=2) return "🌤️";
-      if(code<=3) return "☁️";
-      if(code<=48) return "🌫️";
-      if(code<=57) return "🌧️";
-      if(code<=67) return "🌧️";
-      if(code<=77) return "❄️";
-      if(code<=82) return "🌦️";
-      if(code<=86) return "⛈️";
-      if(code<=99) return "⛈️";
-      return "🌡️";
+      if(code===0) return "âï¸";
+      if(code<=2) return "ð¤ï¸";
+      if(code<=3) return "âï¸";
+      if(code<=48) return "ð«ï¸";
+      if(code<=57) return "ð§ï¸";
+      if(code<=67) return "ð§ï¸";
+      if(code<=77) return "âï¸";
+      if(code<=82) return "ð¦ï¸";
+      if(code<=86) return "âï¸";
+      if(code<=99) return "âï¸";
+      return "ð¡ï¸";
     }
-    var dayNames = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+    var dayNames = ["Dom","Seg","Ter","Qua","Qui","Sex","SÃ¡b"];
     var forecastHtml = "";
     for(var _d=1; _d<=3; _d++){
       if(!wDaily.time || !wDaily.time[_d]) break;
@@ -124,7 +124,7 @@ window.module_home = async function() {
       forecastHtml += "<div style=\"display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,0.1);border-radius:8px;padding:6px 10px;min-width:60px\">"
         + "<span style=\"font-size:11px;opacity:0.85\">"+_dn+"</span>"
         + "<span style=\"font-size:22px;margin:2px 0\">"+_ic+"</span>"
-        + "<span style=\"font-size:12px;font-weight:600\">"+_mx+"°/"+_mn+"°</span>"
+        + "<span style=\"font-size:12px;font-weight:600\">"+_mx+"Â°/"+_mn+"Â°</span>"
         + "<span style=\"font-size:10px;opacity:0.75\">"+_rain.toFixed(0)+"mm</span>"
         + "</div>";
     }
@@ -135,12 +135,12 @@ window.module_home = async function() {
     climaHtml = "<div style=\"display:flex;flex-direction:column;gap:6px;align-items:flex-end\">"
       + "<div style=\"display:flex;align-items:center;gap:10px\">"
       + "<div style=\"font-size:42px\">"+curIcon+"</div>"
-      + "<div><div style=\"font-size:36px;font-weight:700;line-height:1\">"+curTemp+"°C</div>"
-      + "<div style=\"font-size:12px;opacity:0.85\">"+cidadeLabel+" · 💨 "+curWind+" km/h</div></div>"
+      + "<div><div style=\"font-size:36px;font-weight:700;line-height:1\">"+curTemp+"Â°C</div>"
+      + "<div style=\"font-size:12px;opacity:0.85\">"+cidadeLabel+" Â· ð¨ "+curWind+" km/h</div></div>"
       + "</div>"
       + "<div style=\"display:flex;gap:6px;margin-top:4px\">"+forecastHtml+"</div>"
       + "</div>";
-  } catch(e) { climaHtml = "<div style=\"color:#ccc;font-size:12px\">Clima indisponível</div>"; }
+  } catch(e) { climaHtml = "<div style=\"color:#ccc;font-size:12px\">Clima indisponÃ­vel</div>"; }
 
 var html = "";
   // HERO BANNER
@@ -152,9 +152,9 @@ var html = "";
   })();
   var _nomeFazExib = _homeFazObj ? _homeFazObj.nome : (fazendas.length === 1 ? fazendas[0].nome : null);
   var _saudMsg = _nomeFazExib
-    ? _saudacao + ", Produtor! Bem-vindo à <strong>" + _nomeFazExib + "</strong>"
+    ? _saudacao + ", Produtor! Bem-vindo Ã  <strong>" + _nomeFazExib + "</strong>"
     : _saudacao + ", Produtor!";
-  var _fazSelectOpts = "<option value=\"todas\"" + (_homeFazSel==="todas"?" selected":"") + ">🏘️ Todas as Fazendas</option>"
+  var _fazSelectOpts = "<option value=\"todas\"" + (_homeFazSel==="todas"?" selected":"") + ">ðï¸ Todas as Fazendas</option>"
     + fazendas.map(function(f){ return "<option value=\""+f.id+"\"" + (f.id===_homeFazSel?" selected":"") + ">"+f.nome+"</option>"; }).join("");
 
   html += "<div style=\"background:linear-gradient(135deg,#1a4b1a 0%,#2d7d32 60%,#1565c0 100%);border-radius:12px;padding:24px 28px;color:#fff;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;\">"
@@ -163,7 +163,7 @@ var html = "";
     + "<select onchange=\"window._homeChangeFaz(this.value)\" style=\"background:#1b4332;border:2px solid rgba(255,255,255,0.6);color:#fff;border-radius:8px;padding:5px 14px;font-size:13px;cursor:pointer;outline:none;min-width:220px\">"
     + _fazSelectOpts
     + "</select></div>"
-  html += "<div style=\"font-size:clamp(20px,3vw,28px);font-weight:700\">" + _saudMsg + " 🌾</div>"
+  html += "<div style=\"font-size:clamp(20px,3vw,28px);font-weight:700\">" + _saudMsg + " ð¾</div>"
   html += "</div>"
   html += climaHtml
   html += "</div>"
@@ -240,13 +240,13 @@ var html = "";
   html += "<div style=\"background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden\">"
   html += "<div style=\"padding:14px 16px;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center\">"
   html += "<h3 style=\"margin:0;font-size:14px;color:#333\">&#127807; Vendas</h3>"
-  html += "<a href=\"#\" onclick=\"event.preventDefault();document.querySelector('[data-module=vendas-graos]').click();\" style=\"font-size:12px;color:#2d7d32;text-decoration:none\">Gerenciar &rarr;</a>"
+  html += "<a href=\"#\" onclick=\"event.preventDefault();document.querySelector('[data-module=vendas-grãos]').click();\" style=\"font-size:12px;color:#2d7d32;text-decoration:none\">Gerenciar &rarr;</a>"
   html += "</div>"
   if (vendas.length === 0) {
     html += "<div style=\"padding:32px;text-align:center;color:#bbb\">"
     html += "<div style=\"font-size:32px;margin-bottom:8px\">&#127807;</div>"
     html += "<div style=\"font-size:13px\">Nenhum contrato de venda</div>"
-    html += "<button onclick=\"document.querySelector('[data-module=vendas-graos]').click();\" style=\"margin-top:12px;background:#1565c0;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:12px\">Cadastrar Venda</button>"
+    html += "<button onclick=\"document.querySelector('[data-module=vendas-grãos]').click();\" style=\"margin-top:12px;background:#1565c0;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:12px\">Cadastrar Venda</button>"
     html += "</div>"
   } else {
     // Summary bar
@@ -274,25 +274,25 @@ var html = "";
   html += "</div>"
   html += "</div>"
 
-  // ROW 3: Saude Safras + Semaforo Estoque
+  // ROW 3: Saúde Safras + Semaforo Estoque
   html += "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px\">"
 
   // SAUDE DAS SAFRAS
   html += "<div style=\"background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden\">"
-  html += "<div style=\"padding:14px 16px;border-bottom:1px solid #f5f5f5\"><h3 style=\"margin:0;font-size:14px;color:#333\">&#127807; Saude das Safras</h3></div>"
+  html += "<div style=\"padding:14px 16px;border-bottom:1px solid #f5f5f5\"><h3 style=\"margin:0;font-size:14px;color:#333\">&#127807; Saúde das Safras</h3></div>"
   if (safrasAbertas.length === 0) {
     html += "<div style=\"padding:24px;text-align:center;color:#bbb;font-size:13px\">Nenhuma safra em andamento</div>"
   } else {
     safrasAbertas.forEach(function(s) {
       var fz = fazendas.find(function(f){ return f.id===s.fazenda_id; });
       var prodSc = parseFloat(s.produtividade_sc_ha||0);
-      var saudeCor = prodSc>60?"#2d7d32":prodSc>45?"#e65100":"#c62828";
-      var saudeIcon = prodSc>60?"&#128994;":prodSc>45?"&#128993;":"&#128308;";
+      var saúdeCor = prodSc>60?"#2d7d32":prodSc>45?"#e65100":"#c62828";
+      var saúdeIcon = prodSc>60?"&#128994;":prodSc>45?"&#128993;":"&#128308;";
       html += "<div style=\"padding:12px 16px;border-bottom:1px solid #f9f9f9\">"
       html += "<div style=\"display:flex;justify-content:space-between;align-items:center\">"
       html += "<div><div style=\"font-size:13px;font-weight:600\">"+s.nome+"</div>"
       html += "<div style=\"font-size:11px;color:#888\">"+s.cultura+" "+s.ano_agricola+(fz?" &bull; "+fz.nome:"")+"</div></div>"
-      html += "<span style=\"font-size:18px\">"+saudeIcon+"</span>"
+      html += "<span style=\"font-size:18px\">"+saúdeIcon+"</span>"
       html += "</div>"
       html += "</div>"
     });
@@ -335,7 +335,7 @@ var html = "";
   html += "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px\">"
   var acoes = [
     {label:"+ Lancamento",mod:"lancamentos",bg:"#2d7d32"},
-    {label:"Nova Venda",mod:"vendas-graos",bg:"#1565c0"},
+    {label:"Nova Venda",mod:"vendas-grãos",bg:"#1565c0"},
     {label:"Fechar Safra",mod:"fechamento-safra",bg:"#7b1fa2"},
     {label:"Dashboard",mod:"dashboard",bg:"#e65100"},
     {label:"Insumos",mod:"insumos",bg:"#795548"},
@@ -362,7 +362,7 @@ var html = "";
   // IA Gerencial
   var iaGer = [];
   if (ultimoFech) { iaGer.push("Ultimo fechamento: ROI de "+fmtPct(roiUlt)+". "+(roiUlt>=15?"Resultado excelente!":roiUlt>=0?"Margem apertada, revisar custos.":"Resultado negativo. Acoes corretivas necessarias.")); }
-  else iaGer.push("Realize o primeiro Fechamento de Safra para obter analise gerencial completa com ROI e margens.");
+  else iaGer.push("Realize o primeiro Fechamento de Safra para obter análise gerencial completa com ROI e margens.");
   iaGer.push(fazendas.length+" fazenda(s) ativa(s). "+fazendas.filter(function(f){ return f.certificada; }).length+" com certificacao organica/sustentavel.");
 
   // IA Financeira
