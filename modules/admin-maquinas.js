@@ -1,11 +1,11 @@
 // ============================================================
-// JA AGRO – Admin Module: Maquinas (Compartilhamento Multi-Fazenda)
-// admin-maquinas.js
+// JA AGRO â Admin Module: Máquinas (Compartilhamento Multi-Fazenda)
+// admin-máquinas.js
 // ============================================================
 window.module_maquinas = async function() {
     var c = document.getElementById('mainContent');
     if (!c) return;
-    c.innerHTML = '<div style="padding:20px;text-align:center;color:#888">Carregando maquinas...</div>';
+    c.innerHTML = '<div style="padding:20px;text-align:center;color:#888">Carregando máquinas...</div>';
 
     var _maquinas = [], _fazendas = [], _operadores = [];
     var _fazFiltro = 'todas', _busca = '';
@@ -95,7 +95,7 @@ window.module_maquinas = async function() {
 
       c.innerHTML = '<div style="padding:20px">'
             + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
-            + '<h2 style="margin:0;font-size:20px">Maquinas</h2>'
+            + '<h2 style="margin:0;font-size:20px">Máquinas</h2>'
             + '<div style="display:flex;gap:10px;align-items:center">'
             + '<select id="mac_faz_filter" onchange="window._mac_setFaz(this.value)" style="padding:8px 12px;border:1px solid #ccc;border-radius:8px;font-size:14px">' + fazOptions + '</select>'
             + '<input id="mac_busca" type="text" placeholder="Buscar maquina..." value="' + _busca + '" oninput="window._mac_setBusca(this.value)" style="padding:8px 12px;border:1px solid #ccc;border-radius:8px;font-size:14px">'
@@ -225,7 +225,7 @@ window.module_maquinas = async function() {
     window._mac_abrirForm = function(idx) {
           _formIdx = idx;
           var m = idx >= 0 ? _maquinas[idx] : null;
-          var tipos = ['trator','colheitadeira','plantadeira','pulverizador','veiculo','implemento','outro'];
+          var tipos = ['Trator','colheitadeira','plantadeira','pulverizador','veiculo','implemento','outro'];
           var tipoOpts = tipos.map(function(t) { return '<option value="' + t + '"' + (m && m.tipo === t ? ' selected' : '') + '>' + t + '</option>'; }).join('');
           var statOpts = [['ativo','Disponivel'],['manutencao','Em Manutencao'],['inativo','Inativo']].map(function(s) {
                   return '<option value="' + s[0] + '"' + (m && m.status === s[0] ? ' selected' : '') + '>' + s[1] + '</option>';
