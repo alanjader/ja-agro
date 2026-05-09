@@ -1,5 +1,5 @@
 // ============================================================
-// JA AGRO — Admin Module: Fila Offline
+// JA AGRO â Admin Module: Fila Offline
 // admin-offline.js
 // ============================================================
 window.module_offline = async function() {
@@ -32,7 +32,7 @@ window.module_offline = async function() {
       '<div class="table-wrap" style="margin:16px 20px">'+
       (queue.length === 0 ?
         '<div class="empty-state" style="padding:48px;text-align:center"><div style="font-size:48px">OK</div>'+
-        '<p style="color:var(--muted);margin-top:8px">Nenhum lancamento pendente de sincronizacao</p></div>' :
+        '<p style="color:var(--muted);margin-top:8px">Nenhum lancamento pendente de sincronização</p></div>' :
         '<table class="data-table"><thead><tr>'+
         '<th>#</th><th>Data</th><th>Tipo</th><th>Descricao</th><th>Valor (R$)</th><th>Status</th><th>Acoes</th>'+
         '</tr></thead><tbody>'+
