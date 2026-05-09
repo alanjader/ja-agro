@@ -22,7 +22,7 @@ window.module_dashboard = async function() {
     sb.from("talhoes").select("id,nome,area_ha,fazenda_id").eq("ativo",true),
     sb.from("insumos").select("id,nome,estoque_atual,estoque_minimo,preco_unitario").eq("ativo",true),
     sb.from("fechamento_safra").select("*,safras(nome,cultura,ano_agricola),fazendas(nome)").order("criado_em",{ascending:false}).limit(10),
-    sb.from("vendas_graos").select("*").order("criado_em",{ascending:false}).limit(50)
+    sb.from("vendas_grãos").select("*").order("criado_em",{ascending:false}).limit(50)
   ]);
 
   var fazendas = (fazRes.data || []);
@@ -107,11 +107,11 @@ window.module_dashboard = async function() {
   // RENDER HTML
   var html = "";
   // Seletor de fazenda no dashboard
-  var _dashFazSelectOpts = "<option value=\"todas\"" + (_dashFazSel==="todas"?" selected":"") + ">🏘️ Todas as Fazendas</option>"
+  var _dashFazSelectOpts = "<option value=\"todas\"" + (_dashFazSel==="todas"?" selected":"") + ">ðï¸ Todas as Fazendas</option>"
     + fazendas.map(function(f){ return "<option value=\""+f.id+"\"" + (f.id===_dashFazSel?" selected":"") + ">"+f.nome+"</option>"; }).join("");
-  var _dashFazLabel = _dashFazObj ? " — " + _dashFazObj.nome : "";
+  var _dashFazLabel = _dashFazObj ? " â " + _dashFazObj.nome : "";
   html += "<div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px\">"
-       + "<h2 style=\"margin:0;font-size:20px\">📊 Dashboard Analytics · Gráficos e KPIs" + _dashFazLabel + "</h2>"
+       + "<h2 style=\"margin:0;font-size:20px\">ð Dashboard Analytics Â· GrÃ¡ficos e KPIs" + _dashFazLabel + "</h2>"
        + "<select onchange=\"window._dashChangeFaz(this.value)\" style=\"border:1px solid #ccc;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;\">"
        + _dashFazSelectOpts + "</select></div>";
   html += "<div style=\"max-width:1280px;margin:0 auto;padding:0\">"
@@ -119,7 +119,7 @@ window.module_dashboard = async function() {
   // Header
   html += "<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:20px\">"
   html += "<div><h2 style=\"margin:0;font-size:22px;color:#1a2e1a\">&#128200; Dashboard Gerencial</h2>"
-  html += "<p style=\"margin:4px 0 0;color:#888;font-size:13px\">Analise completa da operacao agricola em tempo real</p></div>"
+  html += "<p style=\"margin:4px 0 0;color:#888;font-size:13px\">Análise completa da operacao agricola em tempo real</p></div>"
   html += "<div style=\"font-size:12px;color:#bbb\">Atualizado: "+new Date().toLocaleTimeString("pt-BR")+"</div>"
   html += "</div>"
 
