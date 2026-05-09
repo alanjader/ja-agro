@@ -7,11 +7,12 @@ window.module_maquinas = async function() {
   if (!c) return;
   c.innerHTML = '<div style="padding:20px;text-align:center;color:#888">Carregando máquinas...</div>';
 
-  var sb = window._sb || window.sb;
-  if (!sb) { c.innerHTML='<div style="padding:20px;color:red">Supabase não inicializado.</div>'; return; }
-
   var _maquinas = [], _fazendas = [], _talhoes = [], _operadores = [];
   var _fazFiltro = 'todas', _busca = '';
+  var _macId = null;
+  window._mac_closeApt = function(){ document.getElementById('mac_modal_apt').remove(); };
+  window._mac_closeDesl = function(){ document.getElementById('mac_modal_desl').remove(); };
+  window._mac_closeForm = function(){ document.getElementById('mac_modal_form').remove(); };
 
   async function render() {
     try {
@@ -176,13 +177,13 @@ window.module_maquinas = async function() {
       + '<input id="apt_obs" type="text" placeholder="Detalhes da operação..." style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;box-sizing:border-box"></div>'
       + '<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#2d7d32">💡 O horímetro da máquina será atualizado automaticamente para o horímetro final informado.</div>'
       + '<div style="display:flex;gap:8px;justify-content:flex-end">'
-      + '<button onclick="document.getElementById('mac_modal_apt').remove()" style="border:1px solid #ccc;background:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">Cancelar</button>'
-      + '<button onclick="window._mac_salvarApontamento(''+macId+'')" style="background:#e65100;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">Registrar Uso</button>'
+      + '<button onclick="window._mac_closeApt()" style="border:1px solid #ccc;background:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">Cancelar</button>'
+      + '<button onclick="window._mac_doApt()" style="background:#e65100;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">Registrar Uso</button>'
       + '</div></div>';
     document.body.appendChild(modal);
   };
 
-  window._mac_salvarApontamento = async function(macId) {
+  window._mac_doApt = async function() {
     var fazId = document.getElementById('apt_fazenda').value;
     var horas = parseFloat(document.getElementById('apt_horas').value)||0;
     var horFim = parseFloat(document.getElementById('apt_hor_fim').value)||null;
@@ -192,13 +193,13 @@ window.module_maquinas = async function() {
     var upd = { fazenda_atual_id: fazId, atualizado_em: new Date().toISOString() };
     if (horFim) upd.horimetro_atual = horFim;
     else {
-      var m = _maquinas.find(function(x){ return x.id===macId; });
+      var m = _maquinas.find(function(x){ return x.id===_macId; });
       if (m) upd.horimetro_atual = parseFloat(m.horimetro_atual||0) + horas;
     }
     // Set status to available after logging use
     upd.status = 'disponivel';
 
-    var {error} = await sb.from('maquinas').update(upd).eq('id', macId);
+    var {error} = await sb.from('maquinas').update(upd).eq('id', _macId);
     if (error) { alert('Erro: '+error.message); return; }
     document.getElementById('mac_modal_apt').remove();
     await render();
@@ -231,16 +232,16 @@ window.module_maquinas = async function() {
       + '<div style="margin-bottom:16px"><label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Observação (opcional)</label>'
       + '<input id="desl_obs" type="text" placeholder="Ex: Safra milho segunda safra..." style="width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;box-sizing:border-box"></div>'
       + '<div style="display:flex;gap:8px;justify-content:flex-end">'
-      + '<button onclick="document.getElementById('mac_modal_desl').remove()" style="border:1px solid #ccc;background:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">Cancelar</button>'
-      + '<button onclick="window._mac_confirmarDeslocamento(''+macId+'')" style="background:#1565c0;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">Confirmar Movimentação</button>'
+      + '<button onclick="window._mac_closeDesl()" style="border:1px solid #ccc;background:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">Cancelar</button>'
+      + '<button onclick="window._mac_doDesl()" style="background:#1565c0;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">Confirmar Movimentação</button>'
       + '</div></div>';
     document.body.appendChild(modal);
   };
 
-  window._mac_confirmarDeslocamento = async function(macId) {
+  window._mac_doDesl = async function() {
     var destId = document.getElementById('desl_dest').value;
     var status = document.getElementById('desl_status').value;
-    var {error} = await sb.from('maquinas').update({ fazenda_atual_id: destId, status: status, atualizado_em: new Date().toISOString() }).eq('id', macId);
+    var {error} = await sb.from('maquinas').update({ fazenda_atual_id: destId, status: status, atualizado_em: new Date().toISOString() }).eq('id', _macId);
     if (error) { alert('Erro: '+error.message); return; }
     document.getElementById('mac_modal_desl').remove();
     await render();
@@ -276,13 +277,13 @@ window.module_maquinas = async function() {
       + '<div><label style="font-size:11px;color:#555;display:block;margin-bottom:3px">Nº de Série</label><input id="mac_serie" type="text" value="'+(v.numero_serie||'')+'" style="width:100%;border:1px solid #ccc;border-radius:6px;padding:6px 8px;font-size:13px;box-sizing:border-box"></div>'
       + '</div>'
       + '<div style="display:flex;gap:8px;justify-content:flex-end">'
-      + '<button onclick="document.getElementById('mac_modal_form').remove()" style="border:1px solid #ccc;background:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">Cancelar</button>'
-      + '<button onclick="window._mac_salvar(''+( macId||''  )+'')" style="background:#2d7d32;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">Salvar</button>'
+      + '<button onclick="window._mac_closeForm()" style="border:1px solid #ccc;background:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">Cancelar</button>'
+      + '<button onclick="window._mac_doForm()" style="background:#2d7d32;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">Salvar</button>'
       + '</div></div>';
     document.body.appendChild(modal);
   };
 
-  window._mac_salvar = async function(macId) {
+  window._mac_doForm = async function() {
     var dados = {
       nome: (document.getElementById('mac_nome').value||'').trim(),
       tipo: document.getElementById('mac_tipo').value,
@@ -296,8 +297,8 @@ window.module_maquinas = async function() {
       ativo: true, atualizado_em: new Date().toISOString()
     };
     if (!dados.nome){ alert('Informe o nome da máquina.'); return; }
-    var {error} = macId
-      ? await sb.from('maquinas').update(dados).eq('id', macId)
+    var {error} = _macId
+      ? await sb.from('maquinas').update(dados).eq('id', _macId)
       : await sb.from('maquinas').insert([dados]);
     if (error){ alert('Erro: '+error.message); return; }
     document.getElementById('mac_modal_form').remove();
