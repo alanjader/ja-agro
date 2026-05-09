@@ -74,7 +74,7 @@ window.module_home = async function() {
   // Dicas do agronomo
   var dicas = [
     "&#127807; Monitoramento frequente de pragas reduz custos de controle em ate 40%.",
-    "&#128167; Análise de solo a cada 2 anos garante adubacao mais precisa e economica.",
+    "&#128167; Análise de solo a cada 2 anos garante adubação mais precisa e econômica.",
     "&#127775; Semeadura na epoca correta pode aumentar a produtividade em 15-20%.",
     "&#9748; A irrigacao suplementar no periodo critico valoriza 5 sc/ha em media.",
     "&#128300; Variedades resistentes reduzem custo de fungicidas em ate 30%.",
@@ -274,7 +274,7 @@ var html = "";
   html += "</div>"
   html += "</div>"
 
-  // ROW 3: Saúde Safras + Semaforo Estoque
+  // ROW 3: Saúde Safras + Semáforo Estoque
   html += "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px\">"
 
   // SAUDE DAS SAFRAS
@@ -301,7 +301,7 @@ var html = "";
 
   // SEMAFORO ESTOQUE
   html += "<div style=\"background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden\">"
-  html += "<div style=\"padding:14px 16px;border-bottom:1px solid #f5f5f5\"><h3 style=\"margin:0;font-size:14px;color:#333\">&#128994; Semaforo de Estoque</h3></div>"
+  html += "<div style=\"padding:14px 16px;border-bottom:1px solid #f5f5f5\"><h3 style=\"margin:0;font-size:14px;color:#333\">&#128994; Semáforo de Estoque</h3></div>"
   insumos.slice(0,6).forEach(function(ins){
     var atual = parseFloat(ins.estoque_atual||0);
     var min = parseFloat(ins.estoque_minimo||0);
@@ -320,7 +320,7 @@ var html = "";
   html += "</div>"
   html += "</div>"
 
-  // ROW 4: DICA DO AGRONOMO + ACOES RAPIDAS
+  // ROW 4: DICA DO AGRONOMO + AÇÕES RÁPIDAS
   html += "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px\">"
 
   // DICA DO AGRONOMO
@@ -329,9 +329,9 @@ var html = "";
   html += "<div style=\"font-size:14px;color:#2d7d32;font-weight:600;line-height:1.5\">"+dica+"</div>"
   html += "</div>"
 
-  // ACOES RAPIDAS
+  // AÇÕES RÁPIDAS
   html += "<div style=\"background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.07)\">"
-  html += "<div style=\"font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#888;font-weight:700;margin-bottom:12px\">&#9889; Acoes Rapidas</div>"
+  html += "<div style=\"font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#888;font-weight:700;margin-bottom:12px\">&#9889; Ações Rápidas</div>"
   html += "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px\">"
   var acoes = [
     {label:"+ Lancamento",mod:"lancamentos",bg:"#2d7d32"},
