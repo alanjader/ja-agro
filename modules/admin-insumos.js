@@ -7,9 +7,6 @@ window.module_insumos = async function() {
   if (!c) return;
   c.innerHTML = '<div style="padding:20px;text-align:center;color:#888">Carregando insumos...</div>';
 
-  var sb = window._sb || window.sb;
-  if (!sb) { c.innerHTML='<div style="padding:20px;color:red">Supabase não inicializado.</div>'; return; }
-
   var _insumos = [], _fazendas = [], _fazFiltro = 'todas', _busca = '';
 
   async function render() {
