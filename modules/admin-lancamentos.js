@@ -60,7 +60,7 @@ window.module_lancamentos = async function() {
     var safSel = document.getElementById("filtSafraLanc");
     if(safSel){
       var filtered = v ? _safras.filter(function(s){return s.fazenda_id===v;}) : _safras;
-      safSel.innerHTML = "<option value=\"\">Todas safras</option>" + filtered.map(function(s){return "<option value=\""+s.id+"\">"+esc(s.nome)+"</option>";}).join("");
+      safSel.innerHTML = "<option value=\"\">Todas as Safras</option>" + filtered.map(function(s){return "<option value=\""+s.id+"\">"+esc(s.nome)+"</option>";}).join("");
     }
     renderRows();
   };
@@ -70,8 +70,8 @@ window.module_lancamentos = async function() {
 
   function renderUI(){
     const st = calcStats();
-    const fazOpts = "<option value=\"\">Todas fazendas</option>" + _fazendas.map(function(f){ return "<option value=\""+f.id+"\">"+esc(f.nome)+"</option>"; }).join("");
-    const safraOpts = "<option value=\"\">Todas safras</option>" + _safras.map(function(s){ return "<option value=\""+s.id+"\">"+esc(s.nome)+"</option>"; }).join("");
+    const fazOpts = "<option value=\"\">Todas as Fazendas</option>" + _fazendas.map(function(f){ return "<option value=\""+f.id+"\">"+esc(f.nome)+"</option>"; }).join("");
+    const safraOpts = "<option value=\"\">Todas as Safras</option>" + _safras.map(function(s){ return "<option value=\""+s.id+"\">"+esc(s.nome)+"</option>"; }).join("");
     el.innerHTML =
       "<div style=\"padding:24px;max-width:1200px\">"+
       "<div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:20px\">"+
@@ -89,7 +89,7 @@ window.module_lancamentos = async function() {
       "<select class=\"search-input\" id=\"filtFazLanc\" onchange=\"window._lanc_setFaz(this.value)\" style=\"width:160px\">"+fazOpts+"</select>"+
       "<select class=\"search-input\" id=\"filtSafraLanc\" onchange=\"window._lanc_setSafra(this.value)\" style=\"width:160px\">"+safraOpts+"</select>"+
       "<select class=\"search-input\" onchange=\"window._lanc_setTipo(this.value)\" style=\"width:130px\">"+
-      "<option value=\"\">Todos tipos</option><option value=\"despesa\">Despesa</option><option value=\"receita\">Receita</option></select>"+
+      "<option value=\"\">Todos os Tipos</option><option value=\"despesa\">Despesa</option><option value=\"receita\">Receita</option></select>"+
       "<input class=\"search-input\" placeholder=\"\uD83D\uDD0D Buscar descri\u00E7\u00E3o / NF...\" oninput=\"window._lanc_setBusca(this.value)\" style=\"flex:1;min-width:180px\"/>"+
       "</div>"+
       "<div style=\"background:var(--card);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)\">"+
