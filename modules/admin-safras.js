@@ -1,5 +1,5 @@
 // ============================================================
-// JA AGRO — Admin Module: Safras
+// JA AGRO â Admin Module: Safras
 // admin-safras.js | Schema: data_plantio, data_colheita
 // ============================================================
 window.module_safras = async function() {
@@ -106,7 +106,7 @@ window.module_safras = async function() {
     const fazOpts = _fazendas.map(function(f){
       return '<option value="'+f.id+'"'+(s&&s.fazenda_id===f.id?' selected':'')+'>'+esc(f.nome)+'</option>';
     }).join('');
-    const culturas = ['Soja','Milho','Cafe','Feijao','Algodao','Trigo','Cana','Arroz','Sorgo'];
+    const culturas = ['Soja','Milho','Café','Feijão','Algodão','Trigo','Cana','Arroz','Sorgo'];
     const cultOpts = culturas.map(function(c){
       return '<option value="'+c+'"'+(s&&s.cultura===c?' selected':'')+'>'+c+'</option>';
     }).join('');
@@ -125,6 +125,7 @@ window.module_safras = async function() {
       '<input id="saf_colheita" type="date" value="'+(s&&s.data_colheita||'')+'"/></div>'+
       '<div class="form-field"><label>Area (ha)</label>'+
       '<input id="saf_area" type="number" step="0.01" min="0" value="'+(s&&s.area_ha||'')+'"/></div>'+
+      <div style="margin-bottom:12px"><label style="display:block;font-size:12px;font-weight:600;color:#555;margin-bottom:4px">Ano Agrícola *</label><input type="number" id="saf_ano" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px" min="2000" max="2100" value="${new Date().getFullYear()}" required></div>
       '<div class="form-field"><label>Status</label>'+
       '<select id="saf_status">'+
       '<option value="planejamento"'+(s&&s.status==='planejamento'?' selected':(!s?' selected':''))+'>Planejamento</option>'+
@@ -148,7 +149,8 @@ window.module_safras = async function() {
         if(!fazId) { toast('Selecione a fazenda','bad'); return; }
         if(!cultura) { toast('Selecione a cultura','bad'); return; }
 
-        const payload = { nome, fazenda_id: fazId, cultura, data_plantio: plantio, data_colheita: colheita, area_ha: area, status, observacoes: obs };
+        const payload = { nome, fazenda_id: fazId, cultura, data_plantio: plantio, data_colheita: colheita, area_ha: area, status, ano_agricola: parseInt(document.getElementById("saf_ano") ? document.getElementById("saf_ano").value : "") || new Date().getFullYear(),
+        observacoes: obs };
         const { error } = isNovo
           ? await sb.from('safras').insert(payload)
           : await sb.from('safras').update(payload).eq('id', s.id);
