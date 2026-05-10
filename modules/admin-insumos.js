@@ -77,7 +77,7 @@ window.module_insumos = async function() {
     function renderUI() {
           var lista = filtrados();
           var s = calcStats(_insumos);
-          var fazOptions = '<option value="todas">ðï¸ Todas as Fazendas</option>'
+          var fazOptions = '<option value="todas">🏘️ Todas as Fazendas</option>'
             + '<option value="global">â Todas as Fazendas</option>'
             + _fazendas.map(function(f) { return '<option value="' + f.id + '"' + (_fazFiltro === f.id ? ' selected' : '') + '>' + f.nome + '</option>'; }).join('');
 
