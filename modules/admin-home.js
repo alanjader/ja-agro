@@ -84,7 +84,7 @@ window.module_home = async function() {
   ];
   var dica = dicas[new Date().getDate() % dicas.length];
 
-  // Weather â Open-Meteo (gratuito, sem API key)
+  // Weather — Open-Meteo (gratuito, sem API key)
   var climaHtml = "<div style=\"color:#ccc;font-size:12px;padding:8px\">Carregando clima...</div>";
   var _fazCidade = _homeFazObj ? (_homeFazObj.cidade||"") + (_homeFazObj.estado ? ","+_homeFazObj.estado : "") : (fazendas[0] ? (fazendas[0].cidade||"") + (fazendas[0].estado ? ","+fazendas[0].estado : "") : "");
   try {
@@ -101,7 +101,7 @@ window.module_home = async function() {
     function _wIcon(code){
       if(code===0) return "☀️";
       if(code<=2) return "🌤️";
-      if(code<=3) return "âï¸";
+      if(code<=3) return "☁️";
       if(code<=48) return "🌫️";
       if(code<=57) return "🌧️";
       if(code<=67) return "🌧️";
