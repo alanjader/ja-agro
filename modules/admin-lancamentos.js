@@ -505,7 +505,7 @@ window.module_lancamentos = async function() {
     var nomeCat = cat.nome || "";
     var tc = cat.tipo_cobranca || (
       /[Aa]rrenda|[Ii]rriga|[Aa]plic|[Cc]orret/.test(nomeCat) ? "por_ha" :
-      /[Mm]ão.de.[Oo]bra|[Mm]a[oO].*[Oo]bra|[Ss]ervi/.test(nomeCat) ? "por_dia" : "por_unidade"
+      /m[aã]o.de.obra|[Ss]ervi/i.test(nomeCat) ? "por_dia" : "por_unidade"
     );
     if(tc === "por_ha" && cat.tipo !== "receita"){
       if(haw) haw.style.display="block";
