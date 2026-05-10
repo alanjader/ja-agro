@@ -103,7 +103,7 @@ window.module_vendas_graos = async function() {
   html += "<div style=\"font-size:11px;color:#888\">Pm: " + fmtBrl(precoMedio) + "/sc</div></div>";
   html += "</div>";
 
-  // ---- FORMULÃRIO NOVO CONTRATO ----
+  // ---- FORMULÁRIO NOVO CONTRATO ----
   html += "<div id=\"vgFormPanel\" style=\"display:none;background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:20px\">";
   html += "<h3 style=\"margin:0 0 16px;font-size:16px\">&#128196; Novo Contrato de Venda</h3>";
   html += "<div style=\"display:grid;grid-template-columns:repeat(3,1fr);gap:12px\">";
