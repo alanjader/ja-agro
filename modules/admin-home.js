@@ -437,65 +437,93 @@ var html = "";
   html += "</div>"
 
   c.innerHTML = "<div style=\"padding:16px\">" + html + "</div>";
-  // Popula widget de cotações após render
+  // Popula widget de cotações após render — exibe apenas a cultura principal
   (async function() {
     try {
       var _bEl = document.getElementById('_bolsaTicker');
       if (!_bEl) return;
+
+      // Busca taxa USD/BRL
       var _bFx = null;
       try {
         var _fxR = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
         var _fxD = await _fxR.json();
         _bFx = parseFloat(_fxD.USDBRL.bid);
       } catch(e) {}
+
+      // Determina cultura principal: cultura com mais contratos de venda
       var { data: _bVendas } = await sb.from('vendas_graos')
         .select('cultura,preco_saca,data_contrato')
         .order('data_contrato', {ascending: false})
-        .limit(50);
-      var _bCult = {};
+        .limit(100);
+
+      // Conta frequência por cultura
+      var _bCount = {};
+      var _bLastPrice = {};
       (_bVendas || []).forEach(function(v) {
-        if (v.cultura && v.preco_saca && !_bCult[v.cultura]) {
-          _bCult[v.cultura] = v.preco_saca;
-        }
+        if (!v.cultura) return;
+        _bCount[v.cultura] = (_bCount[v.cultura] || 0) + 1;
+        if (!_bLastPrice[v.cultura] && v.preco_saca) _bLastPrice[v.cultura] = v.preco_saca;
       });
-      if (Object.keys(_bCult).length === 0) {
-        var { data: _bSaf } = await sb.from('safras').select('cultura').limit(20);
+
+      // Determina cultura principal pela maior frequência
+      var _bMainCult = null;
+      var _bMaxCount = 0;
+      Object.keys(_bCount).forEach(function(c) {
+        if (_bCount[c] > _bMaxCount) { _bMaxCount = _bCount[c]; _bMainCult = c; }
+      });
+
+      // Fallback: safras se não há vendas
+      if (!_bMainCult) {
+        var { data: _bSaf } = await sb.from('safras').select('cultura').limit(50);
+        var _bSafCount = {};
         (_bSaf || []).forEach(function(s) {
-          if (s.cultura && !_bCult[s.cultura]) _bCult[s.cultura] = null;
+          if (s.cultura) _bSafCount[s.cultura] = (_bSafCount[s.cultura] || 0) + 1;
+        });
+        var _bSafMax = 0;
+        Object.keys(_bSafCount).forEach(function(c) {
+          if (_bSafCount[c] > _bSafMax) { _bSafMax = _bSafCount[c]; _bMainCult = c; }
         });
       }
+
+      var _bIcons = {Soja:'🌱',Milho:'🌽',Algodao:'☁️',Arroz:'🌾',Trigo:'🌾',Cafe:'☕',Cana:'🎋',OUTRAS:'🌿'};
       var _bItems = [];
+
+      // USD/BRL
       if (_bFx) {
-        _bItems.push('<span style="white-space:nowrap;font-size:12px;">' +
-          '<span style="color:#7ed957;font-weight:600;">USD/BRL</span> ' +
-          '<span style="color:#fff;font-weight:700;">R$ ' + _bFx.toFixed(4) + '</span>' +
+        _bItems.push('<span style="white-space:nowrap;font-size:13px;">' +
+          '<span style="color:#7ed957;font-weight:600;font-size:11px;">USD/BRL</span> ' +
+          '<span style="color:#fff;font-weight:700;">R\$ ' + _bFx.toFixed(4) + '</span>' +
           '</span>');
       }
-      var _bIcons = {Soja:'🌱',Milho:'🌽',Algodao:'☁️',Arroz:'🌾',Trigo:'🌾',Cafe:'☕',Cana:'🎋',OUTRAS:'🌿'};
-      Object.keys(_bCult).sort().forEach(function(cult) {
-        var preco = _bCult[cult];
-        var icon = _bIcons[cult] || '🌿';
-        if (preco) {
-          _bItems.push('<span style="white-space:nowrap;font-size:12px;border-left:1px solid #2d4a2d;padding-left:16px;">' +
-            icon + ' <span style="color:#9ec87a;font-weight:600;">' + cult + '</span> ' +
-            '<span style="color:#fff;font-weight:700;">R\$ ' + parseFloat(preco).toFixed(2) + '/sc</span>' +
-            '<span style="color:#666;font-size:10px;margin-left:4px;">(contratos)</span>' +
-            '</span>');
-        } else {
-          _bItems.push('<span style="white-space:nowrap;font-size:12px;border-left:1px solid #2d4a2d;padding-left:16px;">' +
-            icon + ' <span style="color:#9ec87a;font-weight:600;">' + cult + '</span>' +
-            '<span style="color:#888;font-size:11px;margin-left:6px;">sem contratos</span>' +
-            '</span>');
-        }
-      });
+
+      // Cultura principal
+      if (_bMainCult) {
+        var _bPreco = _bLastPrice[_bMainCult];
+        var _bIcon = _bIcons[_bMainCult] || '🌿';
+        _bItems.push('<span style="white-space:nowrap;font-size:13px;' +
+          (_bFx ? 'border-left:1px solid #3a5a3a;padding-left:18px;' : '') + '">' +
+          _bIcon + ' <span style="color:#9ec87a;font-weight:700;font-size:14px;">' + _bMainCult + '</span> ' +
+          (_bPreco
+            ? '<span style="color:#fff;font-weight:700;font-size:16px;">R\$ ' + parseFloat(_bPreco).toFixed(2) + '/sc</span>' +
+              '<span style="color:#6a946a;font-size:11px;margin-left:6px;">últ. contrato</span>'
+            : '<span style="color:#888;font-size:12px;">sem contrato</span>'
+          ) +
+          '</span>');
+      } else {
+        _bItems.push('<span style="color:#888;font-size:12px;">Nenhuma cultura cadastrada</span>');
+      }
+
+      // Timestamp
       var _bNow = new Date();
       var _bTime = _bNow.getHours().toString().padStart(2,'0') + ':' + _bNow.getMinutes().toString().padStart(2,'0');
-      _bItems.push('<span style="color:#555;font-size:10px;white-space:nowrap;margin-left:auto;">atualizado ' + _bTime + '</span>');
+      _bItems.push('<span style="color:#4a6a4a;font-size:10px;white-space:nowrap;margin-left:auto;">atualizado ' + _bTime + '</span>');
+
       _bEl.style.color = '#fff';
       _bEl.innerHTML = _bItems.join('');
     } catch(e) {
       var _bEl2 = document.getElementById('_bolsaTicker');
-      if (_bEl2) _bEl2.textContent = 'Cota\u00E7\u00F5es indispon\u00EDveis';
+      if (_bEl2) _bEl2.textContent = 'Cotações indisponíveis';
     }
   })();
 
