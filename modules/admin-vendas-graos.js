@@ -26,7 +26,7 @@ window.module_vendas_graos = async function() {
   var precoMedio = totalContratado > 0 ? (totalReceita/totalContratado) : 0;
   var saldoEntregar = totalContratado - totalEntregue;
 
-  var fazOpts = fazendas.map(function(f){ return "<option value=\"" + f.id + "\">" + f.nome + (f.certificada?" â":"") + "</option>"; }).join("");
+  var fazOpts = fazendas.map(function(f){ return "<option value=\"" + f.id + "\">" + f.nome + (f.certificada?" ✓":"") + "</option>"; }).join("");
 
   function fmtSc(n){ return parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:1}); }
   function fmtBrl(n){ return "R$ " + parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -237,37 +237,37 @@ window.module_vendas_graos = async function() {
 
   window._vgExportacaoItens = [
     { cat:"Documentacao Fiscal", itens:[
-      { id:"exp_nfe", texto:"NF-e de venda emitida (DANFE + XML arquivado)", ref:"Art. 1 do Ajuste SINIEF 07/05 â obrigatorio para saida de mercadorias" },
-      { id:"exp_nfe_exp", texto:"NF-e de Exportacao emitida com CFOP 7.101 / 7.102", ref:"RICMS â CFOP Grupo 7 (Vendas para Exterior)" },
+      { id:"exp_nfe", texto:"NF-e de venda emitida (DANFE + XML arquivado)", ref:"Art. 1 do Ajuste SINIEF 07/05 — obrigatorio para saida de mercadorias" },
+      { id:"exp_nfe_exp", texto:"NF-e de Exportacao emitida com CFOP 7.101 / 7.102", ref:"RICMS — CFOP Grupo 7 (Vendas para Exterior)" },
       { id:"exp_re", texto:"Registro de Exportacao (RE) no SISCOMEX aberto e vinculado a NF-e", ref:"IN RFB 1702/2017 e IN SECEX 14/2020" },
-      { id:"exp_due", texto:"Declaracao Unica de Exportacao (DUE) registrada e averbada no Portal Siscomex", ref:"IN RFB 1702/2017 â substitui DSE/DDE" },
+      { id:"exp_due", texto:"Declaracao Unica de Exportacao (DUE) registrada e averbada no Portal Siscomex", ref:"IN RFB 1702/2017 — substitui DSE/DDE" },
       { id:"exp_di", texto:"Despacho aduaneiro concluido (averbacao do embarque na DUE)", ref:"Instrucao Normativa RFB 1702/2017 Art. 49" },
       { id:"exp_contrato_cambio", texto:"Contrato de cambio registrado no SISBACEN (para contratos superiores a USD 50.000)", ref:"Res. BACEN 3568/2008 e Circular 3691/2013" }
     ]},
     { cat:"Documentacao Sanitaria e Fitossanitaria", itens:[
       { id:"exp_cif", texto:"Certificado de Inspecao Fitossanitaria (CIF) emitido pelo MAPA", ref:"Lei 10.711/2003 e Instrucao Normativa MAPA 59/2019" },
       { id:"exp_cts", texto:"Certificado de Tratamento Sanitario (se exigido pelo pais importador)", ref:"Regulamento CE 2072/2020 e normas equivalentes por pais" },
-      { id:"exp_ppp", texto:"Permissao de Transito de Vegetais (PTV) ou Permissao Previa de Importacao do pais destino recebida", ref:"IN MAPA 36/2006 â transito internacional" },
-      { id:"exp_laudo_qual", texto:"Laudo de Qualidade do lote emitido por laboratorio credenciado (MAPA ou INMETRO)", ref:"Lei 9.972/2000 â Classificacao de Grãos e IN MAPA 60/2011" },
-      { id:"exp_residuos", texto:"Análise de residuos de agrotoxicos â laudo com limites dentro do MRL exigido pelo pais importador", ref:"Regulamento (CE) 396/2005 â MRL europeu; US EPA para EUA" },
+      { id:"exp_ppp", texto:"Permissao de Transito de Vegetais (PTV) ou Permissao Previa de Importacao do pais destino recebida", ref:"IN MAPA 36/2006 — transito internacional" },
+      { id:"exp_laudo_qual", texto:"Laudo de Qualidade do lote emitido por laboratorio credenciado (MAPA ou INMETRO)", ref:"Lei 9.972/2000 — Classificacao de Grãos e IN MAPA 60/2011" },
+      { id:"exp_residuos", texto:"Análise de residuos de agrotoxicos — laudo com limites dentro do MRL exigido pelo pais importador", ref:"Regulamento (CE) 396/2005 — MRL europeu; US EPA para EUA" },
       { id:"exp_aflatoxina", texto:"Laudo de micotoxinas (aflatoxinas, fumonisinas, DON) dentro dos limites do pais importador", ref:"Regulamento (CE) 1881/2006 para UE; FDA para EUA" }
     ]},
     { cat:"Certificacoes e Rastreabilidade", itens:[
-      { id:"exp_cert_org", texto:"Certificado organico valido (se produto certificado) â emitido por certificadora credenciada MAPA/IFOAM", ref:"IN MAPA 46/2011 e Lei 10.831/2003" },
-      { id:"exp_rastreab", texto:"Rastreabilidade completa do lote documentada (fazenda â armazem â embarque)", ref:"GlobalG.A.P. e Reg. UE 178/2002 (principio farm-to-fork)" },
-      { id:"exp_cpr", texto:"CPR (Cedula de Produto Rural) quitada ou com anuencia do credor financiador (se financiado)", ref:"Lei 8.929/1994 â CPR; resolucao BACEN sobre gravame" },
+      { id:"exp_cert_org", texto:"Certificado organico valido (se produto certificado) — emitido por certificadora credenciada MAPA/IFOAM", ref:"IN MAPA 46/2011 e Lei 10.831/2003" },
+      { id:"exp_rastreab", texto:"Rastreabilidade completa do lote documentada (fazenda → armazem → embarque)", ref:"GlobalG.A.P. e Reg. UE 178/2002 (principio farm-to-fork)" },
+      { id:"exp_cpr", texto:"CPR (Cedula de Produto Rural) quitada ou com anuencia do credor financiador (se financiado)", ref:"Lei 8.929/1994 — CPR; resolucao BACEN sobre gravame" },
       { id:"exp_car", texto:"CAR (Cadastro Ambiental Rural) da fazenda de origem ativo e regularizado no SICAR", ref:"Lei 12.651/2012 Art. 29 (Codigo Florestal)" }
     ]},
     { cat:"Logistica e Armazenagem", itens:[
-      { id:"exp_warrant", texto:"Warrant ou CDA/WA emitido pelo armazem credenciado (MAPA) se produto em deposito", ref:"Lei 11.076/2004 â CDAs e WAs" },
+      { id:"exp_warrant", texto:"Warrant ou CDA/WA emitido pelo armazem credenciado (MAPA) se produto em deposito", ref:"Lei 11.076/2004 — CDAs e WAs" },
       { id:"exp_conhec_emb", texto:"Conhecimento de Embarque (Bill of Lading ou AWB) emitido apos averbacao da DUE", ref:"Convencao de Hamburgo e INCOTERMS 2020" },
       { id:"exp_bl", texto:"BL/AWB com descricao de mercadoria conforme NCM declarado", ref:"NCM 1201.10.00 (soja), 1005.90.10 (milho), 0901.11.00 (cafe)" },
-      { id:"exp_seguro", texto:"Apolice de seguro de transporte internacional emitida (CIF/CIP) ou confirmada pelo importador (FOB/FCA)", ref:"INCOTERMS 2020 â obrigacoes por modalidade" }
+      { id:"exp_seguro", texto:"Apolice de seguro de transporte internacional emitida (CIF/CIP) ou confirmada pelo importador (FOB/FCA)", ref:"INCOTERMS 2020 — obrigacoes por modalidade" }
     ]},
     { cat:"Obrigacoes Tributarias e Aduaneiras", itens:[
-      { id:"exp_imunidade_icms", texto:"Imunidade de ICMS aplicada corretamente na NF-e de exportacao (CF 88 Art. 155 Â§ 2 X a)", ref:"Constituicao Federal Art. 155 Â§ 2 inc. X alinea a" },
+      { id:"exp_imunidade_icms", texto:"Imunidade de ICMS aplicada corretamente na NF-e de exportacao (CF 88 Art. 155 § 2 X a)", ref:"Constituicao Federal Art. 155 § 2 inc. X alinea a" },
       { id:"exp_drawback", texto:"Drawback ou Ex-tarifario registrado se houve importacao de insumos vinculados (quando aplicavel)", ref:"Portaria SECEX 23/2011 e Dec. 6.759/2009 Regulamento Aduaneiro" },
-      { id:"exp_pis_cofins", texto:"PIS/COFINS sobre exportacao â aliquota zero confirmada ou ressarcimento de creditos solicitado", ref:"Lei 10.833/2003 Art. 5 e Lei 10.637/2002 Art. 5" },
+      { id:"exp_pis_cofins", texto:"PIS/COFINS sobre exportacao — aliquota zero confirmada ou ressarcimento de creditos solicitado", ref:"Lei 10.833/2003 Art. 5 e Lei 10.637/2002 Art. 5" },
       { id:"exp_rof", texto:"ROF (Registro de Operacoes Financeiras) no BACEN se houver adiantamento sobre cambio (ACC/ACE)", ref:"Circular BACEN 3691/2013 e Lei 4.131/1962" }
     ]}
   ];
@@ -322,7 +322,7 @@ window.module_vendas_graos = async function() {
       var totalItens = window._vgExportacaoItens.reduce(function(a,c){ return a + c.itens.length; }, 0);
       var doneItens = Object.values(cl).filter(Boolean).length;
       exportSection = "<div style=\"background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;padding:14px;margin-top:12px\">";
-      exportSection += "<div style=\"font-weight:700;color:#e65100;margin-bottom:10px\">&#9992; Checklist de Exportacao â " + doneItens + "/" + totalItens + " itens concluidos</div>";
+      exportSection += "<div style=\"font-weight:700;color:#e65100;margin-bottom:10px\">&#9992; Checklist de Exportacao — " + doneItens + "/" + totalItens + " itens concluidos</div>";
       window._vgExportacaoItens.forEach(function(cat) {
         exportSection += "<div style=\"font-size:11px;font-weight:700;color:#888;margin:8px 0 4px\">" + cat.cat + "</div>";
         cat.itens.forEach(function(item) {
