@@ -99,17 +99,17 @@ window.module_home = async function() {
     var wCur = meteoData.current_weather||{};
     var wDaily = meteoData.daily||{};
     function _wIcon(code){
-      if(code===0) return "âï¸";
-      if(code<=2) return "ð¤ï¸";
+      if(code===0) return "☀️";
+      if(code<=2) return "🌤️";
       if(code<=3) return "âï¸";
-      if(code<=48) return "ð«ï¸";
-      if(code<=57) return "ð§ï¸";
-      if(code<=67) return "ð§ï¸";
-      if(code<=77) return "âï¸";
-      if(code<=82) return "ð¦ï¸";
-      if(code<=86) return "âï¸";
-      if(code<=99) return "âï¸";
-      return "ð¡ï¸";
+      if(code<=48) return "🌫️";
+      if(code<=57) return "🌧️";
+      if(code<=67) return "🌧️";
+      if(code<=77) return "❄️";
+      if(code<=82) return "🌦️";
+      if(code<=86) return "⛈️";
+      if(code<=99) return "⛈️";
+      return "🌡️";
     }
     var dayNames = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
     var forecastHtml = "";
@@ -124,7 +124,7 @@ window.module_home = async function() {
       forecastHtml += "<div style=\"display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,0.1);border-radius:8px;padding:6px 10px;min-width:60px\">"
         + "<span style=\"font-size:11px;opacity:0.85\">"+_dn+"</span>"
         + "<span style=\"font-size:22px;margin:2px 0\">"+_ic+"</span>"
-        + "<span style=\"font-size:12px;font-weight:600\">"+_mx+"Â°/"+_mn+"Â°</span>"
+        + "<span style=\"font-size:12px;font-weight:600\">"+_mx+"°/"+_mn+"°</span>"
         + "<span style=\"font-size:10px;opacity:0.75\">"+_rain.toFixed(0)+"mm</span>"
         + "</div>";
     }
@@ -135,8 +135,8 @@ window.module_home = async function() {
     climaHtml = "<div style=\"display:flex;flex-direction:column;gap:6px;align-items:flex-end\">"
       + "<div style=\"display:flex;align-items:center;gap:10px\">"
       + "<div style=\"font-size:42px\">"+curIcon+"</div>"
-      + "<div><div style=\"font-size:36px;font-weight:700;line-height:1\">"+curTemp+"Â°C</div>"
-      + "<div style=\"font-size:12px;opacity:0.85\">"+cidadeLabel+" Â· ð¨ "+curWind+" km/h</div></div>"
+      + "<div><div style=\"font-size:36px;font-weight:700;line-height:1\">"+curTemp+"°C</div>"
+      + "<div style=\"font-size:12px;opacity:0.85\">"+cidadeLabel+" · 💨 "+curWind+" km/h</div></div>"
       + "</div>"
       + "<div style=\"display:flex;gap:6px;margin-top:4px\">"+forecastHtml+"</div>"
       + "</div>";
@@ -154,7 +154,7 @@ var html = "";
   var _saudMsg = _nomeFazExib
     ? _saudacao + ", Produtor! Bem-vindo à <strong>" + _nomeFazExib + "</strong>"
     : _saudacao + ", Produtor!";
-  var _fazSelectOpts = "<option value=\"todas\"" + (_homeFazSel==="todas"?" selected":"") + ">ðï¸ Todas as Fazendas</option>"
+  var _fazSelectOpts = "<option value=\"todas\"" + (_homeFazSel==="todas"?" selected":"") + ">🏘️ Todas as Fazendas</option>"
     + fazendas.map(function(f){ return "<option value=\""+f.id+"\"" + (f.id===_homeFazSel?" selected":"") + ">"+f.nome+"</option>"; }).join("");
 
   html += "<div style=\"background:linear-gradient(135deg,#1a4b1a 0%,#2d7d32 60%,#1565c0 100%);border-radius:12px;padding:24px 28px;color:#fff;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;\">"
@@ -163,7 +163,7 @@ var html = "";
     + "<select onchange=\"window._homeChangeFaz(this.value)\" style=\"background:#1b4332;border:2px solid rgba(255,255,255,0.6);color:#fff;border-radius:8px;padding:5px 14px;font-size:13px;cursor:pointer;outline:none;min-width:220px\">"
     + _fazSelectOpts
     + "</select></div>"
-  html += "<div style=\"font-size:clamp(20px,3vw,28px);font-weight:700\">" + _saudMsg + " ð¾</div>"
+  html += "<div style=\"font-size:clamp(20px,3vw,28px);font-weight:700\">" + _saudMsg + " 🌾</div>"
   html += "</div>"
   html += climaHtml
   html += "</div>"
