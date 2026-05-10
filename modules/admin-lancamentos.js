@@ -152,7 +152,6 @@ window.module_lancamentos = async function() {
     const isNovo = !l;
     const tipoAtual = l ? l.tipo : "despesa";
     const catAtual  = l ? l.categoria_id : "";
-    const fazAtual  = l ? l.fazenda_id : "";
     const temMaq = !!(l && l.maquina_id);
     const horasVal = (temMaq && l.unidade==="h") ? (l.quantidade||"") : "";
     const maqDisplay = temMaq ? "block" : "none";
