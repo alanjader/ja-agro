@@ -310,10 +310,42 @@ window.module_qualidade_lotes = async function() {
     var st=document.getElementById("flTipo");estado.filtroTipo=st?st.value:"";
     renderLista();
   };
-  window._qlVer=function(id){
+  window._qlVer=async function(id){
     var a=análises.find(function(x){return x.id===id;});
     if(!a) return;
     estado.análise=a;estado.modo="detalhe";renderDetalhe(a);
+    // --- Documentos vinculados a esta análise ---
+    (async () => {
+      try {
+        const _sbRef = window.supabase;
+        if (!_sbRef) return;
+        const { data: _dList } = await _sbRef.from('documentos')
+          .select('*').eq('modulo_origem', 'qualidade')
+          .eq('entidade_id', id).order('created_at', { ascending: false });
+        const _docs = _dList || [];
+        const _tIco = { LAUDO_LABORATORIAL: '🔬', FOTO_AMOSTRA: '📷', FOTO_LOTE: '📸', CERTIFICADO: '🏅', RELATORIO_TECNICO: '📊', OUTROS: '📎' };
+        let _dHtml = '<div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)">';
+        _dHtml += '<div style="font-size:11px;font-weight:700;color:rgba(124,179,66,.7);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">📁 Documentos da Análise</div>';
+        if (!_docs.length) {
+          _dHtml += '<div style="font-size:12px;color:#888;font-style:italic;margin-bottom:10px">Nenhum documento anexado a esta análise.</div>';
+        } else {
+          _docs.forEach(d => {
+            const ico = _tIco[d.tipo_documento] || '📎';
+            _dHtml += '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border-radius:6px;padding:7px 10px;margin-bottom:4px">';
+            _dHtml += '<span style="font-size:18px">' + ico + '</span>';
+            _dHtml += '<div style="flex:1"><div style="font-size:12px;font-weight:600;color:#ddd">' + (d.nome_arquivo || '').replace(/</g, '&lt;') + '</div>';
+            _dHtml += '<div style="font-size:11px;color:#888">' + (d.descricao || '') + '</div></div>';
+            if (d.url_arquivo) _dHtml += '<a href="' + d.url_arquivo + '" target="_blank" rel="noopener" style="font-size:11px;color:#7cb342">🔗 Abrir</a>';
+            _dHtml += '</div>';
+          });
+        }
+        const _anLbl = a ? ((a.cultura || '') + ' • ' + (a.data_registro || '')).trim() : id.slice(0,8);
+        _dHtml += '<button onclick="if(window.AdminDocumentos){window.AdminDocumentos.abrirUpload(\'qualidade\',\'' + id + '\',\'Análise: ' + '\'+_anLbl+\'' + '\')}" style="margin-top:8px;background:rgba(124,179,66,.15);border:1px solid rgba(124,179,66,.3);color:#7cb342;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-weight:600">📁 + Anexar Documento</button>';
+        _dHtml += '</div>';
+        const _mc = document.getElementById('mainContent');
+        if (_mc) _mc.insertAdjacentHTML('beforeend', _dHtml);
+      } catch(_e) { console.warn('Docs qualidade:', _e); }
+    })();
   };
   window._qlToggleComp=function(id){
     var i=estado.comparando.indexOf(id);
