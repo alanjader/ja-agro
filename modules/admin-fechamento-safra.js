@@ -499,7 +499,7 @@ window.module_fechamento_safra = async function() {
           });
         }
         const _safLbl = safra ? ((safra.cultura || '') + ' ' + (safra.ano_agricola || '')).trim() : fechId.slice(0,8);
-        _dHtml += '<button onclick="if(window.AdminDocumentos){window.AdminDocumentos.abrirUpload(\'fechamento\',\'' + fechId + '\',\'Fechamento: ' + '\'+_safLbl+\'' + '\')}" style="margin-top:8px;background:rgba(45,125,50,.15);border:1px solid rgba(45,125,50,.3);color:#2d7d32;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-weight:600">📁 + Anexar Documento</button>';
+        _dHtml += '<button onclick="if(window.AdminDocumentos){window.AdminDocumentos.abrirUpload(\'fechamento\',\'' + fechId + '\',\'Fechamento: ' + ' + _safLbl + ' + '\')}" style="margin-top:8px;background:rgba(45,125,50,.15);border:1px solid rgba(45,125,50,.3);color:#2d7d32;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-weight:600">📁 + Anexar Documento</button>';
         _dHtml += '</div>';
         if (c) c.insertAdjacentHTML('beforeend', _dHtml);
       } catch(_e) { console.warn('Docs fechamento:', _e); }
