@@ -1,5 +1,5 @@
 // ============================================================
-// JA AGRO â Admin Module: Insumos (Híbrido Multi-Fazenda)
+// JA AGRO – Admin Module: Insumos (Híbrido Multi-Fazenda)
 // admin-insumos.js
 // ============================================================
 window.module_insumos = async function() {
@@ -54,10 +54,10 @@ window.module_insumos = async function() {
                   var faz = ins.fazenda_id ? (_fazendas.find(function(f) { return f.id === ins.fazenda_id; }) || {}).nome || 'Desconhecida' : null;
                   var fazBadge = ins.fazenda_id
                     ? '<span style="background:#e8f5e9;color:#2e7d32;border-radius:12px;padding:2px 8px;font-size:11px">' + faz + '</span>'
-                            : '<span style="background:#e3f2fd;color:#1565c0;border-radius:12px;padding:2px 8px;font-size:11px">â Global</span>';
+                            : '<span style="background:#e3f2fd;color:#1565c0;border-radius:12px;padding:2px 8px;font-size:11px">⊕ Global</span>';
                   var estoqueOk = !ins.estoque_minimo || ins.estoque_atual > ins.estoque_minimo;
                   var estStyle = estoqueOk ? 'color:#2e7d32;font-weight:600' : 'color:#e65100;font-weight:700';
-                  var estoqueIcon = !estoqueOk ? 'â  ' : '';
+                  var estoqueIcon = !estoqueOk ? '⚠ ' : '';
                   return '<tr>'
                     + '<td><strong>' + ins.nome + '</strong>' + (ins.fabricante ? '<br><small style="color:#888">' + ins.fabricante + '</small>' : '') + '</td>'
                     + '<td><span style="background:#f1f8e9;color:#558b2f;border-radius:8px;padding:2px 8px;font-size:11px">' + (ins.categoria || '-') + '</span></td>'
@@ -66,8 +66,8 @@ window.module_insumos = async function() {
                     + '<td>' + (ins.estoque_minimo ? ins.estoque_minimo + ' ' + (ins.unidade || '') : '-') + '</td>'
                     + '<td>' + (ins.preco_unitario ? 'R$ ' + Number(ins.preco_unitario).toFixed(2) : '-') + '</td>'
                     + '<td>'
-                    + '<button onclick="window._ins_movimentar(' + i + ')" style="background:#2e7d32;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;margin-right:4px;font-size:12px">Â± Estoque</button>'
-                    + '<button onclick="window._ins_transferir(' + i + ')" style="background:#1565c0;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;margin-right:4px;font-size:12px">â Transf.</button>'
+                    + '<button onclick="window._ins_movimentar(' + i + ')" style="background:#2e7d32;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;margin-right:4px;font-size:12px">± Estoque</button>'
+                    + '<button onclick="window._ins_transferir(' + i + ')" style="background:#1565c0;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;margin-right:4px;font-size:12px">↔ Transf.</button>'
                     + '<button onclick="window._ins_abrirForm(' + i + ')" style="background:#f57c00;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;margin-right:4px;font-size:12px">Editar</button>'
                     + '<button onclick="window._ins_excluir(' + i + ')" style="background:#c62828;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">Excluir</button>'
                     + '</td></tr>';
@@ -78,7 +78,7 @@ window.module_insumos = async function() {
           var lista = filtrados();
           var s = calcStats(_insumos);
           var fazOptions = '<option value="todas">🏘️ Todas as Fazendas</option>'
-            + '<option value="global">â Todas as Fazendas</option>'
+            + '<option value="global">⊕ Todas as Fazendas</option>'
             + _fazendas.map(function(f) { return '<option value="' + f.id + '"' + (_fazFiltro === f.id ? ' selected' : '') + '>' + f.nome + '</option>'; }).join('');
 
       c.innerHTML = '<div style="padding:20px">'
@@ -104,7 +104,7 @@ window.module_insumos = async function() {
             + '<th style="padding:12px 16px;text-align:left;font-size:12px;color:#555;font-weight:600;border-bottom:1px solid #eee">ESTOQUE</th>'
             + '<th style="padding:12px 16px;text-align:left;font-size:12px;color:#555;font-weight:600;border-bottom:1px solid #eee">EST. MÍN</th>'
             + '<th style="padding:12px 16px;text-align:left;font-size:12px;color:#555;font-weight:600;border-bottom:1px solid #eee">PREÇO (R$)</th>'
-            + '<th style="padding:12px 16px;text-align:left;font-size:12px;color:#555;font-weight:600;border-bottom:1px solid #eee">AÇÃES</th>'
+            + '<th style="padding:12px 16px;text-align:left;font-size:12px;color:#555;font-weight:600;border-bottom:1px solid #eee">AÇÕES</th>'
             + '</tr></thead>'
             + '<tbody>' + renderRows(lista) + '</tbody>'
             + '</table></div></div>';
@@ -128,12 +128,12 @@ window.module_insumos = async function() {
           modal.id = 'ins_modal_mov';
           modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center';
           modal.innerHTML = '<div style="background:#fff;border-radius:12px;padding:28px;width:380px;max-width:95vw">'
-            + '<h3 style="margin:0 0 16px">Â± Movimentação de Estoque</h3>'
-            + '<p style="margin:0 0 12px;color:#555"><strong>' + ins.nome + '</strong> â Estoque atual: ' + (ins.estoque_atual || 0) + ' ' + (ins.unidade || '') + '</p>'
+            + '<h3 style="margin:0 0 16px">± Movimentação de Estoque</h3>'
+            + '<p style="margin:0 0 12px;color:#555"><strong>' + ins.nome + '</strong> — Estoque atual: ' + (ins.estoque_atual || 0) + ' ' + (ins.unidade || '') + '</p>'
             + '<label style="display:block;margin-bottom:8px;font-size:13px;font-weight:600">Tipo</label>'
             + '<select id="ins_mov_tipo" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;margin-bottom:12px">'
             + '<option value="entrada">Entrada (+)</option>'
-            + '<option value="saida">Saída (â)</option>'
+            + '<option value="saida">Saída (−)</option>'
             + '<option value="ajuste">Ajuste (definir quantidade exata)</option>'
             + '</select>'
             + '<label style="display:block;margin-bottom:8px;font-size:13px;font-weight:600">Quantidade (' + (ins.unidade || 'un') + ')</label>'
@@ -181,8 +181,8 @@ window.module_insumos = async function() {
           modal.id = 'ins_modal_transf';
           modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center';
           modal.innerHTML = '<div style="background:#fff;border-radius:12px;padding:28px;width:400px;max-width:95vw">'
-            + '<h3 style="margin:0 0 16px">â Transferir Insumo</h3>'
-            + '<p style="margin:0 0 12px;color:#555"><strong>' + ins.nome + '</strong> â Estoque: ' + (ins.estoque_atual || 0) + ' ' + (ins.unidade || '') + '</p>'
+            + '<h3 style="margin:0 0 16px">↔ Transferir Insumo</h3>'
+            + '<p style="margin:0 0 12px;color:#555"><strong>' + ins.nome + '</strong> — Estoque: ' + (ins.estoque_atual || 0) + ' ' + (ins.unidade || '') + '</p>'
             + '<p style="margin:0 0 12px;color:#777;font-size:13px">Origem: ' + (ins.fazenda_id ? (_fazendas.find(function(f){return f.id===ins.fazenda_id;})||{}).nome : 'Global') + '</p>'
             + '<label style="display:block;margin-bottom:8px;font-size:13px;font-weight:600">Destino</label>'
             + '<select id="ins_transf_dest" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;margin-bottom:12px">' + fazOptions + '</select>'
