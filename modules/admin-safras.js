@@ -1,5 +1,5 @@
 // ============================================================
-// JA AGRO â Admin Module: Safras
+// JA AGRO — Admin Module: Safras
 // admin-safras.js | Schema: data_plantio, data_colheita
 // ============================================================
 window.module_safras = async function() {
