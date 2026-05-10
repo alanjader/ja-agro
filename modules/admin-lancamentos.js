@@ -16,8 +16,8 @@ window.module_lancamentos = async function() {
       sb.from("safras").select("id,nome,fazenda_id,status").order("nome"),
       sb.from("talhoes").select("id,nome,fazenda_id,segue_certificacao").order("nome"),
       sb.from("operadores").select("id,nome,fazenda_id").order("nome"),
-      sb.from("insumos").select("id,nome,unidade,preco_unitario,certificacao_permitida").order("nome"),
-      sb.from("maquinas").select("id,nome,fazenda_id,tipo,custo_hora,horimetro_atual").order("nome"),
+      sb.from("insumos").select("id,nome,unidade,preco_unitario,tipo_cobranca,certificacao_permitida").order("nome"),
+      sb.from("maquinas").select("id,nome,fazenda_id,tipo,custo_hora,custo_ha,custo_dia,tipo_cobranca,horimetro_atual").order("nome"),
       sb.from("lancamentos").select("*").order("data_lancamento",{ascending:false}).limit(300),
     sb.from("categorias_lancamento").select("id,nome,tipo").order("nome")
     ]);
@@ -174,7 +174,7 @@ window.module_lancamentos = async function() {
     }).join("");
     const maqsDoFaz = fazAtual ? _maquinas.filter(function(m){return m.fazenda_id===fazAtual;}) : _maquinas;
     const maqOpts = maqsDoFaz.map(function(m){
-      return "<option value=\""+m.id+"\" data-custo=\""+( m.custo_hora||0)+"\""+((l&&l.maquina_id===m.id)?" selected":"")+">"+esc(m.nome)+"</option>";
+      return "<option value=\""+m.id+"\" data-custo=\""+( m.custo_hora||0)+"\" data-tc=\""+( m.tipo_cobranca||"por_hora")+"\" data-custo-ha=\""+( m.custo_ha||0)+"\" data-custo-dia=\""+( m.custo_dia||0)+"\"""+((l&&l.maquina_id===m.id)?" selected":"")+">"+esc(m.nome)+"</option>";
     }).join("");
     const insumoOpts = _buildInsumoOpts(_insumos, false);
     const unidades = ["kg","L","g","mL","sc","un","cx","t","h","d"];
@@ -217,6 +217,24 @@ window.module_lancamentos = async function() {
       "<input id=\"lanc_custo_hora\" type=\"number\" step=\"0.01\" min=\"0\" placeholder=\"Ex: 180.00\" oninput=\"window._lanc_calcCustoMaq()\"/>"+
       "<small style=\"color:#92400e;font-size:11px\">Preencha para calcular custo total automaticamente</small></div>"+
       "</div></div>"+
+      // AREA (HA) - shown for por_ha billing (arrendamento, servico por ha)
+      "<div class=\"form-field\" id=\"lanc_ha_wrap\" style=\"display:none;grid-column:span 2;background:#f0fdf4;border:1px solid #22c55e;border-radius:8px;padding:12px;margin-bottom:4px\">"+
+      "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px\">"+
+      "<div><label style=\"color:#166534;font-weight:600\">🌾 Área (ha) *</label>"+
+      "<input id=\"lanc_area_ha\" type=\"number\" step=\"0.1\" min=\"0\" placeholder=\"Ex: 120\" value=\"\" oninput=\"window._lanc_calcCustoHA()\"/></div>"+
+      "<div><label style=\"color:#166534;font-weight:600\">R$/ha (custo por hectare)</label>"+
+      "<input id=\"lanc_custo_ha\" type=\"number\" step=\"0.01\" min=\"0\" placeholder=\"Ex: 350.00\" oninput=\"window._lanc_calcCustoHA()\"/>"+
+      "<small style=\"color:#166534;font-size:11px\">Preencha para calcular custo total automaticamente</small></div>"+
+      "</div></div>"+
+      // DIAS - shown for por_dia billing (mao de obra, servico diario)
+      "<div class=\"form-field\" id=\"lanc_dias_wrap\" style=\"display:none;grid-column:span 2;background:#faf5ff;border:1px solid #a855f7;border-radius:8px;padding:12px;margin-bottom:4px\">"+
+      "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px\">"+
+      "<div><label style=\"color:#6b21a8;font-weight:600\">📅 Dias Trabalhados *</label>"+
+      "<input id=\"lanc_dias\" type=\"number\" step=\"1\" min=\"0\" placeholder=\"Ex: 15\" value=\"\" oninput=\"window._lanc_calcCustoDia()\"/></div>"+
+      "<div><label style=\"color:#6b21a8;font-weight:600\">R$/Dia (custo por dia)</label>"+
+      "<input id=\"lanc_custo_dia\" type=\"number\" step=\"0.01\" min=\"0\" placeholder=\"Ex: 280.00\" oninput=\"window._lanc_calcCustoDia()\"/>"+
+      "<small style=\"color:#6b21a8;font-size:11px\">Preencha para calcular custo total automaticamente</small></div>"+
+      "</div></div>"+
       // Quantidade + Unidade (hidden when machine selected, uses horas instead)
       "<div class=\"form-field\" id=\"lanc_qtd_wrap\" style=\"display:"+(temMaq?"none":"block")+"\"><label>Quantidade</label>"+
       "<input id=\"lanc_qtd\" type=\"number\" step=\"0.01\" min=\"0\" value=\""+((l&&!l.maquina_id&&l.quantidade)||"")+"\"/></div>"+
@@ -245,22 +263,45 @@ window.module_lancamentos = async function() {
         const obs    = document.getElementById("lanc_obs").value.trim() || null;
         const custo  = parseFloat(document.getElementById("lanc_custo").value);
         // If machine selected: horas = quantidade, unidade = h
-        var qtd, unid;
-        if(maqId){
+        var qtd, unid, areaHa, dias, custoUnit;
+        var haWrapEl = document.getElementById("lanc_ha_wrap");
+        var diasWrapEl = document.getElementById("lanc_dias_wrap");
+        var usingHA  = haWrapEl  && haWrapEl.style.display  !== "none";
+        var usingDia = diasWrapEl && diasWrapEl.style.display !== "none";
+        if(maqId && !usingHA && !usingDia){
           qtd = parseFloat(document.getElementById("lanc_horas").value) || null;
           unid = "h";
+          custoUnit = parseFloat(document.getElementById("lanc_custo_hora").value) || null;
+        } else if(usingHA){
+          areaHa = parseFloat(document.getElementById("lanc_area_ha").value) || null;
+          qtd = areaHa;
+          unid = "ha";
+          custoUnit = parseFloat(document.getElementById("lanc_custo_ha").value) || null;
+        } else if(usingDia){
+          dias = parseFloat(document.getElementById("lanc_dias").value) || null;
+          qtd = dias;
+          unid = "d";
+          custoUnit = parseFloat(document.getElementById("lanc_custo_dia").value) || null;
         } else {
           qtd = parseFloat(document.getElementById("lanc_qtd").value) || null;
           unid = document.getElementById("lanc_unid").value || null;
+          // custo_unitario from insumo preco_unitario if available
+          var selIns = document.getElementById("lanc_insumo");
+          if(selIns && selIns.value && window._lancInsumos){
+            var insObj = window._lancInsumos.find(function(i){return i.id===selIns.value;});
+            custoUnit = insObj ? (insObj.preco_unitario||null) : null;
+          }
         }
         if(!data) { toast("Informe a data","bad"); return; }
         if(!custo || custo <= 0) { toast("Informe o custo total","bad"); return; }
         if(!fazId) { toast("Selecione a fazenda","bad"); return; }
         if(!desc)  { toast("Informe a descri\u00E7\u00E3o","bad"); return; }
-        if(maqId && (!qtd || qtd <= 0)) { toast("Informe as horas trabalhadas","bad"); return; }
+        if(maqId && !usingHA && !usingDia && (!qtd || qtd <= 0)) { toast("Informe as horas trabalhadas","bad"); return; }
+        if(usingHA && (!areaHa || areaHa <= 0)) { toast("Informe a área em hectares","bad"); return; }
+        if(usingDia && (!dias || dias <= 0)) { toast("Informe os dias trabalhados","bad"); return; }
         const payload = { tipo: tipo, data_lancamento: data, fazenda_id: fazId, safra_id: safId,
           talhao_id: talId, operador_id: opId, insumo_id: insId, maquina_id: maqId,
-          quantidade: qtd, unidade: unid, custo_total: custo,
+          quantidade: qtd, unidade: unid, custo_total: custo, custo_unitario: custoUnit||null,
           nota_fiscal: nf, descricao: desc,
           categoria_id: (document.getElementById("lanc_cat")||{}).value||null, observacoes: obs };
         const { error } = isNovo
@@ -279,26 +320,53 @@ window.module_lancamentos = async function() {
     var hw  = document.getElementById("lanc_horas_wrap");
     var qw  = document.getElementById("lanc_qtd_wrap");
     var uw  = document.getElementById("lanc_unid_wrap");
+    var haw = document.getElementById("lanc_ha_wrap");
+    var dw  = document.getElementById("lanc_dias_wrap");
     if(!hw) return;
+    // Oculta todos os wraps especiais
+    if(haw) haw.style.display="none";
+    if(dw)  dw.style.display="none";
     if(!maqId){
       hw.style.display="none"; qw.style.display="block"; uw.style.display="block";
       return;
     }
-    hw.style.display="block"; qw.style.display="none"; uw.style.display="none";
-    // Auto-fill custo/hora from machine data attribute
-    var maqSel2 = document.getElementById("lanc_maq");
-    var selOpt = maqSel2 && maqSel2.querySelector("option[value=\""+maqId+"\"]");
-    if(selOpt) {
-      var custoMaq = selOpt.getAttribute("data-custo");
-      if(custoMaq && parseFloat(custoMaq) > 0) {
-        var chIn = document.getElementById("lanc_custo_hora");
-        if(chIn) chIn.value = custoMaq;
+    // Determina tipo de cobrança da máquina
+    var maq = _maquinas.find(function(m){return m.id===maqId;});
+    // tipo_cobranca: from DB field, or data attribute, or default
+    var maqSelEl = document.getElementById("lanc_maq");
+    var maqSelOpt = maqSelEl && maqSelEl.querySelector("option[value=\""+maqId+"\"]");
+    var tcFromAttr = maqSelOpt ? maqSelOpt.getAttribute("data-tc") : null;
+    var tc = (maq && maq.tipo_cobranca) || tcFromAttr || "por_hora"; // default: por hora
+    if(tc === "por_ha"){
+      hw.style.display="none"; qw.style.display="none"; uw.style.display="none";
+      if(haw){ haw.style.display="block";
+        var haIn = document.getElementById("lanc_custo_ha");
+        if(haIn && maq && maq.custo_ha && maq.custo_ha > 0) haIn.value = maq.custo_ha;
+      }
+    } else if(tc === "por_dia"){
+      hw.style.display="none"; qw.style.display="none"; uw.style.display="none";
+      if(dw){ dw.style.display="block";
+        var dIn = document.getElementById("lanc_custo_dia");
+        if(dIn && maq && maq.custo_dia && maq.custo_dia > 0) dIn.value = maq.custo_dia;
+      }
+    } else {
+      // por_hora (padrão)
+      hw.style.display="block"; qw.style.display="none"; uw.style.display="none";
+      var maqSel2 = document.getElementById("lanc_maq");
+      var selOpt = maqSel2 && maqSel2.querySelector("option[value=\""+maqId+"\"]");
+      if(selOpt) {
+        var custoMaq = selOpt.getAttribute("data-custo");
+        if(custoMaq && parseFloat(custoMaq) > 0) {
+          var chIn = document.getElementById("lanc_custo_hora");
+          if(chIn) chIn.value = custoMaq;
+        }
       }
     }
-    // Set tipo to despesa
     var ts = document.getElementById("lanc_tipo"); if(ts) ts.value="despesa";
-    // Focus horas field
-    setTimeout(function(){ var h=document.getElementById("lanc_horas"); if(h) h.focus(); }, 50);
+    setTimeout(function(){
+      var target = tc==="por_ha" ? "lanc_area_ha" : tc==="por_dia" ? "lanc_dias" : "lanc_horas";
+      var h=document.getElementById(target); if(h) h.focus();
+    }, 50);
   };
 
   // Auto-calculate custo total from horas * custo_hora
@@ -311,18 +379,57 @@ window.module_lancamentos = async function() {
     }
   };
 
+  // Auto-calculate custo total from area_ha * custo_ha
+  window._lanc_calcCustoHA = function(){
+    var ha    = parseFloat(document.getElementById("lanc_area_ha").value) || 0;
+    var custoH = parseFloat(document.getElementById("lanc_custo_ha").value) || 0;
+    if(ha > 0 && custoH > 0){
+      var ci = document.getElementById("lanc_custo");
+      if(ci) ci.value = (ha * custoH).toFixed(2);
+    }
+  };
+
+  // Auto-calculate custo total from dias * custo_dia
+  window._lanc_calcCustoDia = function(){
+    var dias  = parseFloat(document.getElementById("lanc_dias").value) || 0;
+    var custoD = parseFloat(document.getElementById("lanc_custo_dia").value) || 0;
+    if(dias > 0 && custoD > 0){
+      var ci = document.getElementById("lanc_custo");
+      if(ci) ci.value = (dias * custoD).toFixed(2);
+    }
+  };
+
   // Auto-fill insumo unit + calculate cost
   window._lanc_onInsumoChange = function(insId){
     if(!insId) return;
     var ins = _insumos.find(function(i){return i.id===insId;});
     if(!ins) return;
-    var unidSel = document.getElementById("lanc_unid");
-    if(unidSel && ins.unidade) unidSel.value = ins.unidade;
-    var qtdInput = document.getElementById("lanc_qtd");
-    var custoInput = document.getElementById("lanc_custo");
-    var qtd = qtdInput ? parseFloat(qtdInput.value) : 0;
-    if(qtd > 0 && ins.preco_unitario > 0 && custoInput)
-      custoInput.value = (qtd * ins.preco_unitario).toFixed(2);
+    // Tipo de cobrança: por_unidade (padrão para insumos)
+    var tc = ins.tipo_cobranca || "por_unidade";
+    var haw = document.getElementById("lanc_ha_wrap");
+    var dw  = document.getElementById("lanc_dias_wrap");
+    var qw  = document.getElementById("lanc_qtd_wrap");
+    var uw  = document.getElementById("lanc_unid_wrap");
+    if(haw) haw.style.display="none";
+    if(dw)  dw.style.display="none";
+    if(tc === "por_ha"){
+      if(haw) haw.style.display="block";
+      if(qw)  qw.style.display="none";
+      if(uw)  uw.style.display="none";
+      var haIn = document.getElementById("lanc_custo_ha");
+      if(haIn && ins.preco_unitario > 0) haIn.value = ins.preco_unitario;
+    } else {
+      // por_unidade (default)
+      if(qw)  qw.style.display="block";
+      if(uw)  uw.style.display="block";
+      var unidSel = document.getElementById("lanc_unid");
+      if(unidSel && ins.unidade) unidSel.value = ins.unidade;
+      var qtdInput = document.getElementById("lanc_qtd");
+      var custoInput = document.getElementById("lanc_custo");
+      var qtd = qtdInput ? parseFloat(qtdInput.value) : 0;
+      if(qtd > 0 && ins.preco_unitario > 0 && custoInput)
+        custoInput.value = (qtd * ins.preco_unitario).toFixed(2);
+    }
   };
 
   // Filter form dropdowns when fazenda changes
@@ -377,6 +484,34 @@ window.module_lancamentos = async function() {
     if(tipoSel && tipoSel.value !== cat.tipo){
       tipoSel.value = cat.tipo;
       window._lanc_onTipoChange(cat.tipo);
+    }
+    // Inferir tipo de cobrança pela categoria
+    var haw = document.getElementById("lanc_ha_wrap");
+    var dw  = document.getElementById("lanc_dias_wrap");
+    var hw  = document.getElementById("lanc_horas_wrap");
+    var qw  = document.getElementById("lanc_qtd_wrap");
+    var uw  = document.getElementById("lanc_unid_wrap");
+    // Reset all to default
+    if(haw) haw.style.display="none";
+    if(dw)  dw.style.display="none";
+    if(hw)  hw.style.display="none";
+    // Categorias que cobram por ha
+    var nomeCat = cat.nome || "";
+    var tc = cat.tipo_cobranca || (
+      /[Aa]rrenda|[Ii]rriga|[Aa]plic|[Cc]orret/.test(nomeCat) ? "por_ha" :
+      /[Mm]ão.de.[Oo]bra|[Mm]a[oO].*[Oo]bra|[Ss]ervi/.test(nomeCat) ? "por_dia" : "por_unidade"
+    );
+    if(tc === "por_ha" && cat.tipo !== "receita"){
+      if(haw) haw.style.display="block";
+      if(qw)  qw.style.display="none";
+      if(uw)  uw.style.display="none";
+    } else if(tc === "por_dia" && cat.tipo !== "receita"){
+      if(dw)  dw.style.display="block";
+      if(qw)  qw.style.display="none";
+      if(uw)  uw.style.display="none";
+    } else {
+      if(qw)  qw.style.display="block";
+      if(uw)  uw.style.display="block";
     }
   };
   window._lanc_del = function(btn){
