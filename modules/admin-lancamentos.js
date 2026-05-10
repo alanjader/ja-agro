@@ -16,8 +16,8 @@ window.module_lancamentos = async function() {
       sb.from("safras").select("id,nome,fazenda_id,status").order("nome"),
       sb.from("talhoes").select("id,nome,fazenda_id,segue_certificacao").order("nome"),
       sb.from("operadores").select("id,nome,fazenda_id").order("nome"),
-      sb.from("insumos").select("id,nome,unidade,preco_unitario,tipo_cobranca,certificacao_permitida,fazenda_id").order("nome"),
-      sb.from("maquinas").select("id,nome,fazenda_id,tipo,custo_hora,custo_ha,custo_dia,tipo_cobranca,horimetro_atual").order("nome"),
+      sb.from("insumos").select("id,nome,unidade,preco_unitario,certificacao_permitida,fazenda_id").order("nome"),
+      sb.from("maquinas").select("id,nome,fazenda_id,tipo,custo_hora,horimetro_atual").order("nome"),
       sb.from("lancamentos").select("*").order("data_lancamento",{ascending:false}).limit(300),
     sb.from("categorias_lancamento").select("id,nome,tipo").order("nome")
     ]);
