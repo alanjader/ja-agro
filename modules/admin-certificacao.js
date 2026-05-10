@@ -348,7 +348,7 @@ const AdminCertificação = (() => {
     if (!talhoes.length) return '';
     return `
     <div class="cert-section">
-      <div class="cert-section-header"><h4>🗺️ Talhões â Conformidade</h4></div>
+      <div class="cert-section-header"><h4>🗺️ Talhões — Conformidade</h4></div>
       <div class="cert-talhoes-list">
         ${talhoes.map(t => {
           const segue = t.segue_certificação !== false;
@@ -369,7 +369,7 @@ const AdminCertificação = (() => {
     if (!insumos.length) return '';
     return `
     <div class="cert-section">
-      <div class="cert-section-header"><h4>🌿 Insumos â Compatibilidade</h4></div>
+      <div class="cert-section-header"><h4>🌿 Insumos — Compatibilidade</h4></div>
       <p class="cert-hint">Marque os insumos permitidos para uso em talhões certificados.</p>
       <div class="cert-insumos-list">
         ${insumos.map(i => {
