@@ -26,6 +26,7 @@ window.module_lancamentos = async function() {
     _talhoes   = ta.data||[];
     _operadores= op.data||[];
     _insumos   = ins.data||[];
+    window._lancInsumos = _insumos;
     _maquinas  = maq.data||[];
     _lancamentos= lan.data||[];
     window._lancCategorias = (cats.data||[]);
