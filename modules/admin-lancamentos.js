@@ -43,6 +43,18 @@ window.module_lancamentos = async function() {
     return {totalDespesas:totalDespesas, totalReceitas:totalReceitas, totalMaq:totalMaq, totalHoras:totalHoras, qtd:items.length};
   }
 
+  function renderKpis(){
+    const cont = document.getElementById("lancKpis");
+    if(!cont) return;
+    const st = calcStats();
+    cont.innerHTML =
+      "<div class=\"stat-card\" style=\"border-left:4px solid #ef4444\"><div class=\"stat-value\" style=\"color:#ef4444\">"+fmt(st.totalDespesas)+"</div><div class=\"stat-label\">Total Despesas</div></div>"+
+      "<div class=\"stat-card\" style=\"border-left:4px solid #22c55e\"><div class=\"stat-value\" style=\"color:#22c55e\">"+fmt(st.totalReceitas)+"</div><div class=\"stat-label\">Total Receitas</div></div>"+
+      "<div class=\"stat-card\" style=\"border-left:4px solid #f59e0b\"><div class=\"stat-value\" style=\"color:#f59e0b\">"+fmt(st.totalMaq)+"</div>"+
+      "<div class=\"stat-label\">Custo Maquin\u00E1rio"+(st.totalHoras>0?" &#183; "+fmtN(st.totalHoras,1)+"h":"")+"</div></div>"+
+      "<div class=\"stat-card\" style=\"border-left:4px solid #6366f1\"><div class=\"stat-value\">"+st.qtd+"</div><div class=\"stat-label\">Lan\u00E7amentos</div></div>";
+  }
+
   function filtrados(){
     return _lancamentos.filter(function(l){
       if(_filtFaz && l.fazenda_id!==_filtFaz) return false;
@@ -65,11 +77,11 @@ window.module_lancamentos = async function() {
       var filtered = v ? _safras.filter(function(s){return s.fazenda_id===v;}) : _safras;
       safSel.innerHTML = "<option value=\"\">Todas as Safras</option>" + filtered.map(function(s){return "<option value=\""+s.id+"\">"+esc(s.nome)+"</option>";}).join("");
     }
-    renderRows();
+    renderRows(); renderKpis();
   };
-  window._lanc_setSafra = function(v){ _filtSafra=v; renderRows(); };
-  window._lanc_setTipo  = function(v){ _filtTipo=v; renderRows(); };
-  window._lanc_setBusca = function(v){ _filtBusca=v; renderRows(); };
+  window._lanc_setSafra = function(v){ _filtSafra=v; renderRows(); renderKpis(); };
+  window._lanc_setTipo  = function(v){ _filtTipo=v; renderRows(); renderKpis(); };
+  window._lanc_setBusca = function(v){ _filtBusca=v; renderRows(); renderKpis(); };
 
   function renderUI(){
     const st = calcStats();
@@ -81,7 +93,7 @@ window.module_lancamentos = async function() {
       "<div><h2 style=\"margin:0;color:var(--txt)\">\uD83D\uDCCB Lan\u00E7amentos</h2>"+
       "<p style=\"margin:4px 0 0;color:var(--txt-s);font-size:14px\">Registro de custos, receitas e opera\u00E7\u00F5es</p></div>"+
       "<button class=\"btn-primary\" onclick=\"window._lanc_abrirForm(null)\">+ Novo Lan\u00E7amento</button></div>"+
-      "<div style=\"display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px\">"+
+      "<div id=\"lancKpis\" style=\"display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px\">"+
       "<div class=\"stat-card\" style=\"border-left:4px solid #ef4444\"><div class=\"stat-value\" style=\"color:#ef4444\">"+fmt(st.totalDespesas)+"</div><div class=\"stat-label\">Total Despesas</div></div>"+
       "<div class=\"stat-card\" style=\"border-left:4px solid #22c55e\"><div class=\"stat-value\" style=\"color:#22c55e\">"+fmt(st.totalReceitas)+"</div><div class=\"stat-label\">Total Receitas</div></div>"+
       "<div class=\"stat-card\" style=\"border-left:4px solid #f59e0b\"><div class=\"stat-value\" style=\"color:#f59e0b\">"+fmt(st.totalMaq)+"</div>"+
@@ -106,6 +118,15 @@ window.module_lancamentos = async function() {
       "<th style=\"padding:12px 16px;text-align:right;font-size:12px;color:var(--txt-s);font-weight:600;text-transform:uppercase\">Valor</th>"+
       "<th style=\"padding:12px 16px;text-align:center;font-size:12px;color:var(--txt-s);font-weight:600;text-transform:uppercase\">A\u00E7\u00F5es</th>"+
       "</tr></thead><tbody id=\"lanc-tbody\"></tbody></table></div></div>";
+    if (_filtFaz) {
+      var _fs = document.getElementById("filtFazLanc");
+      if (_fs) _fs.value = _filtFaz;
+      var _ss = document.getElementById("filtSafraLanc");
+      if (_ss) {
+        var _filteredSafras = _safras.filter(function(s){return s.fazenda_id===_filtFaz;});
+        _ss.innerHTML = "<option value=\"\">Todas as Safras</option>" + _filteredSafras.map(function(s){return "<option value=\""+s.id+"\">"+esc(s.nome)+"</option>";}).join("");
+      }
+    }
     renderRows();
   }
 
@@ -675,6 +696,12 @@ window.module_lancamentos = async function() {
   async function render(){
     el.innerHTML = "<div style=\"padding:40px;text-align:center;color:var(--txt-s)\">\u23F3 Carregando...</div>";
     await loadData();
+    try {
+      var _globalFaz = sessionStorage.getItem("homeFazSel");
+      if (_globalFaz && _globalFaz !== "todas" && _fazendas.some(function(f){return f.id===_globalFaz;})) {
+        _filtFaz = _globalFaz;
+      }
+    } catch(e){}
     renderUI();
   }
 
