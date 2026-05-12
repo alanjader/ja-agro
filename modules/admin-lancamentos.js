@@ -341,20 +341,7 @@ window.module_lancamentos = async function() {
           : await sb.from("lancamentos").update(payload).eq("id", l.id);
         if(error) { toast("Erro: "+error.message,"bad"); return; }
         toast(isNovo ? "Lan\u00E7amento registrado!" : "Lan\u00E7amento atualizado!","ok");
-        // Baixa estoque do insumo se novo lançamento
-        if (insId && qtd > 0 && isNovo) {
-          const { data: insData } = await sb.from('insumos').select('estoque_atual,nome,unidade').eq('id', insId).single();
-          if (insData) {
-            const novoEst = Math.max(0, (insData.estoque_atual || 0) - qtd);
-            await sb.from('insumos').update({ estoque_atual: novoEst }).eq('id', insId);
-            const diff = (insData.estoque_atual||0) - qtd;
-            if (diff >= 0) {
-              toast('✅ Estoque de '+insData.nome+': '+novoEst+' '+(insData.unidade||''),'ok');
-            } else {
-              toast('⚠️ Estoque de '+insData.nome+' ficou negativo! Verifique.','bad');
-            }
-          }
-        }
+
                 // Atualiza horimetro e registra depreciação da maquina
         if (maqId && qtd > 0 && unid === 'h' && isNovo) {
           const { data: maqData } = await sb.from('maquinas').select('horimetro_atual,custo_hora,nome').eq('id', maqId).single();
@@ -366,17 +353,7 @@ window.module_lancamentos = async function() {
             toast('🚜 '+maqData.nome+': +'+qtd+'h | Horímetro: '+novoHorimetro+'h','ok');
           }
         }
-                // Atualiza horimetro e registra depreciação da maquina
-        if (maqId && qtd > 0 && unid === 'h' && isNovo) {
-          const { data: maqData } = await sb.from('maquinas').select('horimetro_atual,custo_hora,nome').eq('id', maqId).single();
-          if (maqData) {
-            const novoHorimetro = (maqData.horimetro_atual || 0) + qtd;
-            await sb.from('maquinas').update({ horimetro_atual: novoHorimetro }).eq('id', maqId);
-            const custoDep = (maqData.custo_hora || 0) * qtd;
-            await sb.from('manutencoes').insert({ maquina_id: maqId, tipo: 'uso_operacional', descricao: 'Uso: '+qtd+'h - '+(desc||''), custo: custoDep, horimetro: novoHorimetro, data: data });
-            toast('🚜 '+maqData.nome+': +'+qtd+'h | Horímetro: '+novoHorimetro+'h','ok');
-          }
-        }
+
         closeModal(); render();
       }
     );
