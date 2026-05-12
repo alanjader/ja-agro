@@ -335,6 +335,20 @@ window.module_lancamentos = async function() {
           : await sb.from("lancamentos").update(payload).eq("id", l.id);
         if(error) { toast("Erro: "+error.message,"bad"); return; }
         toast(isNovo ? "Lan\u00E7amento registrado!" : "Lan\u00E7amento atualizado!","ok");
+        // Baixa estoque do insumo se novo lançamento
+        if (insId && qtd > 0 && isNovo) {
+          const { data: insData } = await sb.from('insumos').select('estoque_atual,nome,unidade').eq('id', insId).single();
+          if (insData) {
+            const novoEst = Math.max(0, (insData.estoque_atual || 0) - qtd);
+            await sb.from('insumos').update({ estoque_atual: novoEst }).eq('id', insId);
+            const diff = (insData.estoque_atual||0) - qtd;
+            if (diff >= 0) {
+              toast('✅ Estoque de '+insData.nome+': '+novoEst+' '+(insData.unidade||''),'ok');
+            } else {
+              toast('⚠️ Estoque de '+insData.nome+' ficou negativo! Verifique.','bad');
+            }
+          }
+        }
         closeModal(); render();
       }
     );
