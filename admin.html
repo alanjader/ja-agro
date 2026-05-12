@@ -121,6 +121,95 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 }
 .nav-badge.show{display:block;}
 
+/* === NOVO MENU AGRUPADO === */
+.nav-search-wrap{padding:8px 6px 10px;position:sticky;top:0;background:linear-gradient(180deg,rgba(15,30,17,1) 70%,rgba(15,30,17,0));z-index:5;}
+.nav-search-wrap input{
+  width:100%;padding:8px 12px;border-radius:8px;
+  border:1px solid rgba(124,179,66,.15);
+  background:rgba(255,255,255,.04);
+  color:rgba(255,255,255,.85);
+  font-size:12px;outline:none;
+  transition:border-color .15s, background .15s;
+}
+.nav-search-wrap input:focus{border-color:rgba(124,179,66,.5);background:rgba(255,255,255,.08);}
+.nav-search-wrap input::placeholder{color:rgba(255,255,255,.35);}
+
+.nav-group{margin-bottom:2px;}
+.nav-group-header{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 12px;
+  border-radius:var(--r);
+  cursor:pointer;
+  color:rgba(255,255,255,.78);
+  font-size:13px;font-weight:700;
+  user-select:none;
+  transition:background .15s, color .15s;
+}
+.nav-group-header:hover{background:rgba(124,179,66,.08);color:#fff;}
+.nav-group-header .nav-icon{font-size:17px;width:22px;text-align:center;flex-shrink:0;}
+.nav-group-label{flex:1;letter-spacing:.2px;}
+.nav-chevron{
+  font-size:11px;color:rgba(255,255,255,.4);
+  transition:transform .2s ease;
+  flex-shrink:0;
+}
+.nav-group.expanded .nav-chevron{transform:rotate(180deg);color:var(--green);}
+.nav-group.expanded .nav-group-header{color:#fff;}
+.nav-group.has-active .nav-group-header{
+  background:rgba(124,179,66,.06);
+  color:#fff;
+}
+.nav-group.has-active .nav-group-header .nav-icon{filter:drop-shadow(0 0 4px rgba(124,179,66,.4));}
+
+.nav-submenu{
+  max-height:0;overflow:hidden;
+  transition:max-height .25s ease;
+  padding-left:8px;
+  border-left:1px dashed rgba(124,179,66,.12);
+  margin:2px 0 4px 16px;
+}
+.nav-group.expanded .nav-submenu{max-height:900px;}
+
+.nav-submenu .nav-item{
+  padding:7px 10px 7px 12px;
+  font-size:12.5px;
+  font-weight:500;
+  color:rgba(255,255,255,.55);
+}
+.nav-submenu .nav-item .nav-icon{font-size:14px;width:18px;}
+.nav-submenu .nav-item:hover{color:rgba(255,255,255,.95);}
+.nav-submenu .nav-item.active{
+  background:rgba(124,179,66,.18);
+  color:#fff;
+  font-weight:600;
+}
+.nav-submenu .nav-item.active::before{
+  left:-9px;top:8px;bottom:8px;
+}
+
+.nav-subsection{
+  font-size:9px;font-weight:700;
+  color:rgba(124,179,66,.55);
+  letter-spacing:1.2px;text-transform:uppercase;
+  padding:10px 12px 4px;
+  user-select:none;
+}
+
+.nav-tag-soon{
+  margin-left:auto;
+  background:rgba(255,255,255,.06);
+  color:rgba(255,255,255,.4);
+  font-size:8.5px;font-weight:700;
+  padding:2px 6px;border-radius:7px;
+  letter-spacing:.5px;text-transform:uppercase;
+}
+.nav-item.nav-soon{opacity:.7;}
+.nav-item.nav-soon:hover{opacity:.95;}
+
+.nav-item.nav-hidden{display:none!important;}
+.nav-group.nav-hidden{display:none!important;}
+
+
 .sidebar-footer{
   padding:14px 16px;
   border-top:1px solid rgba(124,179,66,.1);
@@ -485,88 +574,173 @@ tbody tr:last-child td{border-bottom:none;}
 
   <div class="sidebar-section">Visão Geral</div>
   <nav class="sidebar-nav" id="sidebarNav">
-    <div class="nav-item active" data-module="home" onclick="loadModule('home',this)">
-      <span class="nav-icon">📊</span> Home
-    </div>
-    <div style="height:1px;background:rgba(124,179,66,.08);margin:8px 2px;"></div>
-    <div style="font-size:9px;font-weight:700;color:rgba(124,179,66,.4);letter-spacing:2px;text-transform:uppercase;padding:8px 12px 4px;">Operacional</div>
-
-    <div class="nav-item" data-module="lancamentos" onclick="loadModule('lancamentos',this)">
-      <span class="nav-icon">📋</span> Lançamentos
-      <span class="nav-badge" id="badgeSync">0</span>
-    </div>
-    <div class="nav-item" data-module="offline" onclick="loadModule('offline',this)">
-      <span class="nav-icon">🔄</span> Fila Offline
-      <span class="nav-badge" id="badgeOffline">0</span>
+    <div class="nav-search-wrap">
+      <input type="text" id="navSearchInput" placeholder="🔍 Buscar..." oninput="window._navSearch(this.value)" />
     </div>
 
-          <a href="#" class="nav-item" data-module="vendas-graos" onclick="loadModule('vendas-graos',this)">
-            <span class="nav-icon">&#127807;</span><span class="nav-label">Vendas</span>
-          </a>
-          <a href="#" class="nav-item" data-module="fechamento-safra" onclick="loadModule('fechamento-safra',this)">
-            <span class="nav-icon">&#128200;</span><span class="nav-label">Fechamento de Safra</span>
-          </a>
-  
-    <div style="height:1px;background:rgba(124,179,66,.08);margin:8px 2px;"></div>
-    <div style="font-size:9px;font-weight:700;color:rgba(124,179,66,.4);letter-spacing:2px;text-transform:uppercase;padding:8px 12px 4px;">Fazendas</div>
+    <!-- INICIO -->
+    <div class="nav-group" data-group="inicio">
+      <div class="nav-group-header" onclick="window._navToggle('inicio')">
+        <span class="nav-icon">🏠</span><span class="nav-group-label">Início</span>
+        <span class="nav-chevron">▾</span>
+      </div>
+      <div class="nav-submenu">
+        <div class="nav-item" data-module="home" onclick="loadModule('home',this)"><span class="nav-icon">🏡</span>Home</div>
+        <div class="nav-item" data-module="dashboard" onclick="loadModule('dashboard',this)"><span class="nav-icon">📊</span>Painel Geral</div>
+        <div class="nav-item nav-soon" data-module="alertas" onclick="loadModule('alertas',this)"><span class="nav-icon">🔔</span>Alertas<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="resumo-fazendas" onclick="loadModule('resumo-fazendas',this)"><span class="nav-icon">📍</span>Resumo das Fazendas<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="ia-operacional" onclick="loadModule('ia-operacional',this)"><span class="nav-icon">🤖</span>IA Operacional<span class="nav-tag-soon">em breve</span></div>
+      </div>
+    </div>
 
-    <div class="nav-item" data-module="fazendas" onclick="loadModule('fazendas',this)">
-      <span class="nav-icon">🏢</span> Fazendas
+    <!-- PRODUCAO -->
+    <div class="nav-group" data-group="producao">
+      <div class="nav-group-header" onclick="window._navToggle('producao')">
+        <span class="nav-icon">🌱</span><span class="nav-group-label">Produção</span>
+        <span class="nav-chevron">▾</span>
+      </div>
+      <div class="nav-submenu">
+        <div class="nav-subsection">Safras</div>
+        <div class="nav-item" data-module="safras" onclick="loadModule('safras',this)"><span class="nav-icon">📅</span>Safras</div>
+        <div class="nav-item nav-soon" data-module="planejamento" onclick="loadModule('planejamento',this)"><span class="nav-icon">🗺️</span>Planejamento<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item" data-module="fechamento-safra" onclick="loadModule('fechamento-safra',this)"><span class="nav-icon">📈</span>Encerramento Safra</div>
+        <div class="nav-subsection">Campo</div>
+        <div class="nav-item" data-module="talhoes" onclick="loadModule('talhoes',this)"><span class="nav-icon">🌾</span>Talhões</div>
+        <div class="nav-item" data-module="lancamentos" onclick="loadModule('lancamentos',this)"><span class="nav-icon">📋</span>Atividades<span class="nav-badge" id="badgeSync">0</span></div>
+        <div class="nav-item nav-soon" data-module="aplicacoes" onclick="loadModule('aplicacoes',this)"><span class="nav-icon">💧</span>Aplicações<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="apontamentos" onclick="loadModule('apontamentos',this)"><span class="nav-icon">📝</span>Apontamentos<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-subsection">Produção</div>
+        <div class="nav-item nav-soon" data-module="colheita" onclick="loadModule('colheita',this)"><span class="nav-icon">🌽</span>Colheita<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item" data-module="qualidade-lotes" onclick="loadModule('qualidade-lotes',this)"><span class="nav-icon">📦</span>Qualidade Produção</div>
+        <div class="nav-item nav-soon" data-module="produtividade" onclick="loadModule('produtividade',this)"><span class="nav-icon">📊</span>Produtividade<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="rastreabilidade" onclick="loadModule('rastreabilidade',this)"><span class="nav-icon">🔍</span>Rastreabilidade<span class="nav-tag-soon">em breve</span></div>
+      </div>
     </div>
-    <div class="nav-item" data-module="usuarios" onclick="loadModule('usuarios',this)">
-      <span class="nav-icon">👤</span> Usuários
-    </div>
-    <div class="nav-item" data-module="talhoes" onclick="loadModule('talhoes',this)">
-      <span class="nav-icon">🌾</span> Talhões
-    </div>
-    <div class="nav-item" data-module="safras" onclick="loadModule('safras',this)">
-      <span class="nav-icon">📅</span> Safras
-    </div>
-    <div style="height:1px;background:rgba(124,179,66,.08);margin:8px 2px;"></div>
-    <div style="font-size:9px;font-weight:700;color:rgba(124,179,66,.4);letter-spacing:2px;text-transform:uppercase;padding:8px 12px 4px;">Cadastros</div>
 
-    <div class="nav-item" data-module="insumos" onclick="loadModule('insumos',this)">
-      <span class="nav-icon">🧪</span> Insumos
+    <!-- ESTOQUE -->
+    <div class="nav-group" data-group="estoque">
+      <div class="nav-group-header" onclick="window._navToggle('estoque')">
+        <span class="nav-icon">📦</span><span class="nav-group-label">Estoque & Insumos</span>
+        <span class="nav-chevron">▾</span>
+      </div>
+      <div class="nav-submenu">
+        <div class="nav-subsection">Estoque</div>
+        <div class="nav-item" data-module="insumos" onclick="loadModule('insumos',this)"><span class="nav-icon">🧪</span>Meus Insumos</div>
+        <div class="nav-item nav-soon" data-module="estoque-geral" onclick="loadModule('estoque-geral',this)"><span class="nav-icon">📚</span>Estoque Geral<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="estoque-fazenda" onclick="loadModule('estoque-fazenda',this)"><span class="nav-icon">🏚️</span>Estoque por Fazenda<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="inventario" onclick="loadModule('inventario',this)"><span class="nav-icon">🗃️</span>Inventário<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="movimentacoes" onclick="loadModule('movimentacoes',this)"><span class="nav-icon">🔁</span>Movimentações<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-subsection">Logística</div>
+        <div class="nav-item nav-soon" data-module="transferencias" onclick="loadModule('transferencias',this)"><span class="nav-icon">🚛</span>Transferências<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="historico-logistico" onclick="loadModule('historico-logistico',this)"><span class="nav-icon">📜</span>Histórico Logístico<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="estoque-critico" onclick="loadModule('estoque-critico',this)"><span class="nav-icon">⚠️</span>Estoque Crítico<span class="nav-tag-soon">em breve</span></div>
+      </div>
     </div>
-    <div class="nav-item" data-module="maquinas" onclick="loadModule('maquinas',this)">
-      <span class="nav-icon">🚜</span> Máquinas
+
+    <!-- MAQUINAS -->
+    <div class="nav-group" data-group="maquinas">
+      <div class="nav-group-header" onclick="window._navToggle('maquinas')">
+        <span class="nav-icon">🚜</span><span class="nav-group-label">Máquinas & Equip.</span>
+        <span class="nav-chevron">▾</span>
+      </div>
+      <div class="nav-submenu">
+        <div class="nav-item" data-module="maquinas" onclick="loadModule('maquinas',this)"><span class="nav-icon">🚜</span>Máquinas</div>
+        <div class="nav-item nav-soon" data-module="implementos" onclick="loadModule('implementos',this)"><span class="nav-icon">⚙️</span>Implementos<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item" data-module="operadores" onclick="loadModule('operadores',this)"><span class="nav-icon">👷</span>Equipe Operacional</div>
+        <div class="nav-item nav-soon" data-module="agenda-operacional" onclick="loadModule('agenda-operacional',this)"><span class="nav-icon">🗓️</span>Agenda Operacional<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="horimetros" onclick="loadModule('horimetros',this)"><span class="nav-icon">⏱️</span>Horímetros<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="abastecimentos" onclick="loadModule('abastecimentos',this)"><span class="nav-icon">⛽</span>Abastecimentos<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="manutencoes" onclick="loadModule('manutencoes',this)"><span class="nav-icon">🔧</span>Manutenções<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="transferencia-maquinas" onclick="loadModule('transferencia-maquinas',this)"><span class="nav-icon">🔄</span>Transferência de Máquinas<span class="nav-tag-soon">em breve</span></div>
+      </div>
     </div>
-    <div class="nav-item" data-module="operadores" onclick="loadModule('operadores',this)">
-      <span class="nav-icon">👷</span> Operadores
+
+    <!-- FAZENDAS -->
+    <div class="nav-group" data-group="fazendas">
+      <div class="nav-group-header" onclick="window._navToggle('fazendas')">
+        <span class="nav-icon">🏢</span><span class="nav-group-label">Fazendas</span>
+        <span class="nav-chevron">▾</span>
+      </div>
+      <div class="nav-submenu">
+        <div class="nav-item" data-module="fazendas" onclick="loadModule('fazendas',this)"><span class="nav-icon">🏡</span>Minhas Fazendas</div>
+        <div class="nav-item nav-soon" data-module="producao-fazenda" onclick="loadModule('producao-fazenda',this)"><span class="nav-icon">🌾</span>Produção por Fazenda<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="custos-fazenda" onclick="loadModule('custos-fazenda',this)"><span class="nav-icon">💰</span>Custos por Fazenda<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="comparativo-fazendas" onclick="loadModule('comparativo-fazendas',this)"><span class="nav-icon">⚖️</span>Comparativo entre Fazendas<span class="nav-tag-soon">em breve</span></div>
+      </div>
     </div>
-    <div class="nav-item" data-module="despesas-fixas" onclick="loadModule('despesas-fixas',this)">
-      <span class="nav-icon">💼</span> Despesas Fixas
+
+    <!-- FINANCEIRO -->
+    <div class="nav-group" data-group="financeiro">
+      <div class="nav-group-header" onclick="window._navToggle('financeiro')">
+        <span class="nav-icon">💰</span><span class="nav-group-label">Financeiro</span>
+        <span class="nav-chevron">▾</span>
+      </div>
+      <div class="nav-submenu">
+        <div class="nav-subsection">Custos</div>
+        <div class="nav-item nav-soon" data-module="custos-operacionais" onclick="loadModule('custos-operacionais',this)"><span class="nav-icon">💸</span>Custos Operacionais<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="rateios" onclick="loadModule('rateios',this)"><span class="nav-icon">➗</span>Rateios<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="custos-talhao" onclick="loadModule('custos-talhao',this)"><span class="nav-icon">📐</span>Custos por Talhão<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-subsection">Financeiro</div>
+        <div class="nav-item nav-soon" data-module="compras" onclick="loadModule('compras',this)"><span class="nav-icon">🛒</span>Compras<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item" data-module="despesas-fixas" onclick="loadModule('despesas-fixas',this)"><span class="nav-icon">💼</span>Despesas Fixas</div>
+        <div class="nav-item nav-soon" data-module="fluxo-caixa" onclick="loadModule('fluxo-caixa',this)"><span class="nav-icon">📉</span>Fluxo de Caixa<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item" data-module="vendas-graos" onclick="loadModule('vendas-graos',this)"><span class="nav-icon">🌾</span>Contratos & Vendas</div>
+        <div class="nav-subsection">Rentabilidade</div>
+        <div class="nav-item nav-soon" data-module="rentabilidade-safra" onclick="loadModule('rentabilidade-safra',this)"><span class="nav-icon">📈</span>Rentabilidade Safra<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="indicadores-financeiros" onclick="loadModule('indicadores-financeiros',this)"><span class="nav-icon">📊</span>Indicadores<span class="nav-tag-soon">em breve</span></div>
+      </div>
     </div>
-        <div style="height:1px;background:rgba(124,179,66,.08);margin:8px 2px;"></div>
-        <div style="font-size:9px;font-weight:700;color:rgba(124,179,66,.4);letter-spacing:2px;text-transform:uppercase;padding:8px 14px 4px">ANALYTICS</div>
 
-        <div class="nav-item" data-module="dashboard" onclick="loadModule('dashboard',this)">
-          <span class="nav-icon">📊</span> Dashboard
-        </div>
-        <div class="nav-item" data-module="exportar" onclick="loadModule('exportar',this)">
-          <span class="nav-icon">📤</span> Exportação de Dados
-        </div>
+    <!-- QUALIDADE -->
+    <div class="nav-group" data-group="qualidade">
+      <div class="nav-group-header" onclick="window._navToggle('qualidade')">
+        <span class="nav-icon">🏅</span><span class="nav-group-label">Qualidade</span>
+        <span class="nav-chevron">▾</span>
+      </div>
+      <div class="nav-submenu">
+        <div class="nav-item" data-module="certificacao" onclick="loadModule('certificacao',this)"><span class="nav-icon">🏅</span>Certificações</div>
+        <div class="nav-item" data-module="analise-solo" onclick="loadModule('analise-solo',this)"><span class="nav-icon">🧪</span>Análise de Solo</div>
+        <div class="nav-item nav-soon" data-module="auditorias" onclick="loadModule('auditorias',this)"><span class="nav-icon">🔎</span>Auditorias<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item" data-module="qualidade-lotes" onclick="loadModule('qualidade-lotes',this)"><span class="nav-icon">📦</span>Qualidade de Lotes</div>
+        <div class="nav-item nav-soon" data-module="exportacao-qualidade" onclick="loadModule('exportacao-qualidade',this)"><span class="nav-icon">🚢</span>Exportação<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item" data-module="documentos" onclick="loadModule('documentos',this)"><span class="nav-icon">📁</span>Documentos</div>
+        <div class="nav-item nav-soon" data-module="checklists" onclick="loadModule('checklists',this)"><span class="nav-icon">✅</span>Checklists<span class="nav-tag-soon">em breve</span></div>
+      </div>
+    </div>
 
-        <div style="height:1px;background:rgba(124,179,66,.08);margin:8px 2px;"></div>
-        <div style="font-size:9px;font-weight:700;color:rgba(124,179,66,.4);letter-spacing:2px;text-transform:uppercase;padding:8px 14px 4px">QUALIDADE</div>
+    <!-- RELATORIOS -->
+    <div class="nav-group" data-group="relatorios">
+      <div class="nav-group-header" onclick="window._navToggle('relatorios')">
+        <span class="nav-icon">📊</span><span class="nav-group-label">Relatórios</span>
+        <span class="nav-chevron">▾</span>
+      </div>
+      <div class="nav-submenu">
+        <div class="nav-item" data-module="dashboard" onclick="loadModule('dashboard',this)"><span class="nav-icon">📊</span>Relatórios Gerais</div>
+        <div class="nav-item nav-soon" data-module="relatorio-safra" onclick="loadModule('relatorio-safra',this)"><span class="nav-icon">🌾</span>Relatórios Safra<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="relatorio-estoque" onclick="loadModule('relatorio-estoque',this)"><span class="nav-icon">📦</span>Relatórios Estoque<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="relatorio-maquinas" onclick="loadModule('relatorio-maquinas',this)"><span class="nav-icon">🚜</span>Relatórios Máquinas<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="relatorio-financeiro" onclick="loadModule('relatorio-financeiro',this)"><span class="nav-icon">💰</span>Relatórios Financeiros<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item" data-module="exportar" onclick="loadModule('exportar',this)"><span class="nav-icon">📤</span>Exportações</div>
+      </div>
+    </div>
 
-        <div class="nav-item" data-module="certificacao" onclick="loadModule('certificacao',this)">
-          <span class="nav-icon">🏅</span> Certificação
-        </div>
-
-        <div class="nav-item" data-module="analise-solo" onclick="loadModule('analise-solo',this)">
-          <span class="nav-icon">🧪</span> Análise de Solo
-          <span class="nav-badge" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px">PRO</span>
-        </div>
-
-        <div class="nav-item" data-module="qualidade-lotes" onclick="loadModule('qualidade-lotes',this)">
-          <span class="nav-icon">&#128203;</span> Qualidade de Lotes
-        </div></div>
-        <div style="height:1px;background:rgba(124,179,66,.08);margin:8px 2px;"></div>
-        <div style="font-size:9px;font-weight:700;color:rgba(124,179,66,.4);letter-spacing:2px;text-transform:uppercase;padding:8px 14px 4px">DOCUMENTOS</div>
-        <div class="nav-item" data-module="documentos" onclick="loadModule('documentos',this)">
-          <span class="nav-icon">📁</span> Documentos
-        </div></nav>
+    <!-- CONFIG -->
+    <div class="nav-group" data-group="config">
+      <div class="nav-group-header" onclick="window._navToggle('config')">
+        <span class="nav-icon">⚙️</span><span class="nav-group-label">Configurações</span>
+        <span class="nav-chevron">▾</span>
+      </div>
+      <div class="nav-submenu">
+        <div class="nav-item" data-module="usuarios" onclick="loadModule('usuarios',this)"><span class="nav-icon">👤</span>Usuários</div>
+        <div class="nav-item nav-soon" data-module="permissoes" onclick="loadModule('permissoes',this)"><span class="nav-icon">🔐</span>Permissões<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="fornecedores" onclick="loadModule('fornecedores',this)"><span class="nav-icon">🏪</span>Fornecedores<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="cadastros-gerais" onclick="loadModule('cadastros-gerais',this)"><span class="nav-icon">📒</span>Cadastros Gerais<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item nav-soon" data-module="integracoes" onclick="loadModule('integracoes',this)"><span class="nav-icon">🔌</span>Integrações<span class="nav-tag-soon">em breve</span></div>
+        <div class="nav-item" data-module="offline" onclick="loadModule('offline',this)"><span class="nav-icon">🔄</span>Fila Offline<span class="nav-badge" id="badgeOffline">0</span></div>
+        <div class="nav-item nav-soon" data-module="config-sistema" onclick="loadModule('config-sistema',this)"><span class="nav-icon">🛠️</span>Configurações Sistema<span class="nav-tag-soon">em breve</span></div>
+      </div>
+    </div>
+  </nav>
 
   <div class="sidebar-footer">
     <div class="user-card" id="userCard">
@@ -673,6 +847,7 @@ window.loadModule = function(name, el) {
   document.querySelectorAll('.nav-item').forEach(function(i){ i.classList.remove('active'); });
   if(el) el.classList.add('active');
   currentModule = name;
+  if(window._navMarkActiveGroup) window._navMarkActiveGroup(name);
   // Atualiza título do cabeçalho
   const _titulos = {
     'home': ['Início', 'Visão geral da fazenda'],
@@ -694,6 +869,50 @@ window.loadModule = function(name, el) {
     'analise-solo': ['Análise de Solo', 'Laudos e resultados de análise de solo'],
     'qualidade-lotes': ['Qualidade de Lotes', 'Controle de qualidade por lote e safra'],
     'documentos': ['Documentos', 'Repositório central de documentos e anexos'],
+    'alertas': ['Alertas', 'Avisos e notificações operacionais'],
+    'resumo-fazendas': ['Resumo das Fazendas', 'Panorama operacional de todas as fazendas'],
+    'ia-operacional': ['IA Operacional', 'Recomendações inteligentes da operação'],
+    'planejamento': ['Planejamento', 'Planejamento de safra e operações'],
+    'aplicacoes': ['Aplicações', 'Aplicações de defensivos e fertilizantes'],
+    'apontamentos': ['Apontamentos', 'Apontamentos de campo'],
+    'colheita': ['Colheita', 'Operação e controle de colheita'],
+    'produtividade': ['Produtividade', 'Indicadores de produtividade por talhão e safra'],
+    'rastreabilidade': ['Rastreabilidade', 'Histórico completo de lotes e produção'],
+    'estoque-geral': ['Estoque Geral', 'Visão consolidada do estoque'],
+    'estoque-fazenda': ['Estoque por Fazenda', 'Estoque segmentado por propriedade'],
+    'inventario': ['Inventário', 'Contagens e ajustes de inventário'],
+    'movimentacoes': ['Movimentações', 'Entradas e saídas de estoque'],
+    'transferencias': ['Transferências', 'Transferências entre fazendas e depósitos'],
+    'historico-logistico': ['Histórico Logístico', 'Histórico de movimentações logísticas'],
+    'estoque-critico': ['Estoque Crítico', 'Itens abaixo do mínimo'],
+    'implementos': ['Implementos', 'Cadastro de implementos agrícolas'],
+    'agenda-operacional': ['Agenda Operacional', 'Programação de operações no campo'],
+    'horimetros': ['Horímetros', 'Leitura e controle de horímetros'],
+    'abastecimentos': ['Abastecimentos', 'Abastecimentos e combustível'],
+    'manutencoes': ['Manutenções', 'Manutenções preventivas e corretivas'],
+    'transferencia-maquinas': ['Transferência de Máquinas', 'Movimentação de máquinas entre fazendas'],
+    'producao-fazenda': ['Produção por Fazenda', 'Produção consolidada de cada fazenda'],
+    'custos-fazenda': ['Custos por Fazenda', 'Custos consolidados de cada fazenda'],
+    'comparativo-fazendas': ['Comparativo entre Fazendas', 'Compare performance entre propriedades'],
+    'custos-operacionais': ['Custos Operacionais', 'Detalhamento de custos operacionais'],
+    'rateios': ['Rateios', 'Rateios de custos por safra/talhão/fazenda'],
+    'custos-talhao': ['Custos por Talhão', 'Custos detalhados por talhão'],
+    'compras': ['Compras', 'Pedidos e compras de insumos'],
+    'fluxo-caixa': ['Fluxo de Caixa', 'Entradas e saídas de caixa'],
+    'rentabilidade-safra': ['Rentabilidade Safra', 'Análise de rentabilidade por safra'],
+    'indicadores-financeiros': ['Indicadores Financeiros', 'Indicadores e KPIs financeiros'],
+    'auditorias': ['Auditorias', 'Auditorias internas e externas'],
+    'exportacao-qualidade': ['Exportação', 'Documentos e requisitos para exportação'],
+    'checklists': ['Checklists', 'Checklists operacionais'],
+    'relatorio-safra': ['Relatórios Safra', 'Relatórios detalhados de safra'],
+    'relatorio-estoque': ['Relatórios Estoque', 'Relatórios detalhados de estoque'],
+    'relatorio-maquinas': ['Relatórios Máquinas', 'Relatórios detalhados de máquinas'],
+    'relatorio-financeiro': ['Relatórios Financeiros', 'Relatórios detalhados financeiros'],
+    'permissoes': ['Permissões', 'Controle de acesso por papel'],
+    'fornecedores': ['Fornecedores', 'Cadastro de fornecedores'],
+    'cadastros-gerais': ['Cadastros Gerais', 'Categorias, unidades, e outros cadastros'],
+    'integracoes': ['Integrações', 'Integrações com sistemas externos'],
+    'config-sistema': ['Configurações Sistema', 'Preferências e configurações do sistema'],
   };
   const _t = _titulos[name] || [name, ''];
   const _titleEl = document.getElementById('topbarTitle');
@@ -719,8 +938,20 @@ window.loadModule = function(name, el) {
     }
   };
   script.onerror = function() {
+    var _ttl = (_titulos[name]||[name,''])[0];
+    var _sub = (_titulos[name]||[name,''])[1];
     document.getElementById('mainContent').innerHTML =
-      '<div class="page-loading"><div style="font-size:48px">🚧</div><div class="loading-text" style="color:var(--muted)">Módulo <strong>' + name + '</strong> em construção</div></div>';
+      '<div style="padding:48px 24px;max-width:720px;margin:40px auto">'+
+      '<div style="background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);border:1px solid #86efac;border-radius:16px;padding:36px;text-align:center">'+
+        '<div style="font-size:56px;margin-bottom:12px">🚧</div>'+
+        '<div style="font-size:22px;font-weight:700;color:#166534;margin-bottom:6px">'+_ttl+'</div>'+
+        '<div style="font-size:14px;color:#15803d;margin-bottom:18px">'+_sub+'</div>'+
+        '<div style="display:inline-block;background:#fff;color:#166534;padding:8px 18px;border-radius:99px;font-size:12px;font-weight:700;letter-spacing:1px;border:1px solid #86efac">EM BREVE</div>'+
+        '<p style="margin-top:22px;color:#374151;font-size:13px;line-height:1.6;max-width:480px;margin-left:auto;margin-right:auto">'+
+        'Este módulo faz parte da próxima onda de evolução do JA Agro. '+
+        'A estrutura está reservada e o desenvolvimento será priorizado conforme demanda.'+
+        '</p>'+
+      '</div></div>';
   };
   document.head.appendChild(script);
 };
@@ -756,6 +987,50 @@ window.showConfirm = function(msg, onConfirm) {
   if(btn) btn.textContent = "Confirmar";
 };
 
+// ── MENU GROUPS (NOVO MENU) ───────────────────
+window._navToggle = function(groupId){
+  var g = document.querySelector('.nav-group[data-group="'+groupId+'"]');
+  if(!g) return;
+  var expanded = g.classList.toggle('expanded');
+  try {
+    var st = JSON.parse(localStorage.getItem('navGroupsOpen')||'{}');
+    st[groupId] = expanded;
+    localStorage.setItem('navGroupsOpen', JSON.stringify(st));
+  } catch(e){}
+};
+window._navInitState = function(){
+  var st = {};
+  try { st = JSON.parse(localStorage.getItem('navGroupsOpen')||'null') || {inicio:true}; } catch(e){ st = {inicio:true}; }
+  document.querySelectorAll('.nav-group').forEach(function(g){
+    var id = g.getAttribute('data-group');
+    if(st[id]) g.classList.add('expanded');
+  });
+};
+window._navMarkActiveGroup = function(moduleName){
+  document.querySelectorAll('.nav-group').forEach(function(g){ g.classList.remove('has-active'); });
+  var activeItem = document.querySelector('.nav-item.active[data-module="'+moduleName+'"]');
+  if(activeItem){
+    var grp = activeItem.closest('.nav-group');
+    if(grp){
+      grp.classList.add('has-active','expanded');
+    }
+  }
+};
+window._navSearch = function(q){
+  q = (q||'').toLowerCase().trim();
+  document.querySelectorAll('.nav-group').forEach(function(g){
+    var anyMatch = false;
+    g.querySelectorAll('.nav-item').forEach(function(it){
+      var txt = (it.textContent||'').toLowerCase();
+      var match = !q || txt.includes(q);
+      it.classList.toggle('nav-hidden', !match);
+      if(match) anyMatch = true;
+    });
+    g.classList.toggle('nav-hidden', !anyMatch);
+    if(q && anyMatch) g.classList.add('expanded');
+  });
+};
+
 // ── AUTH ──────────────────────────────────────
 async function initAuth() {
   try {
@@ -777,6 +1052,7 @@ async function initAuth() {
     document.getElementById('userAvatar').textContent = (perfil.nome||'A')[0].toUpperCase();
 
     // Carrega módulo inicial
+    if(window._navInitState) window._navInitState();
     loadModule('home', document.querySelector('[data-module="home"]'));
 
     // Atualiza badges de pendentes
