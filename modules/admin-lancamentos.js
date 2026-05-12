@@ -124,7 +124,12 @@ window.module_lancamentos = async function() {
       var badge = l.tipo==="despesa"
         ? "<span style=\"background:#fef2f2;color:#ef4444;padding:2px 8px;border-radius:9px;font-size:11px;font-weight:600\">Despesa</span>"
         : "<span style=\"background:#f0fdf4;color:#22c55e;padding:2px 8px;border-radius:9px;font-size:11px;font-weight:600\">Receita</span>";
-      var dataFmt = l.data_lancamento ? l.data_lancamento.substring(0,10) : "-";
+      var dataFmt = l.data_lancamento ? l.data_lancamento.substring(0,10) : '-';
+      var _diasSem=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+      var _dtObj = l.data_lancamento ? new Date(l.data_lancamento+'T12:00:00') : null;
+      var _diaSem = _dtObj ? _diasSem[_dtObj.getDay()] : '';
+      var _semMes = _dtObj ? Math.ceil(_dtObj.getDate()/7) : 0;
+      var _semLabel = _semMes ? _semMes+'ª sem' : '';
       var horasInfo = (maq && l.unidade==="h" && l.quantidade)
         ? "<div style=\"font-size:11px;color:#f59e0b\">"+fmtN(l.quantidade,1)+" h</div>" : "";
       var maqInfo = maq
@@ -136,7 +141,7 @@ window.module_lancamentos = async function() {
       var fazNome = esc(faz?faz.nome:"");
       var talTag = tal ? "<br><span style=\"font-size:11px\">&nbsp;"+esc(tal.nome)+"</span>" : "";
       return "<tr style=\"border-top:1px solid var(--brd)\">"+
-        "<td style=\"padding:12px 16px;font-size:13px;color:var(--txt-s)\">"+dataFmt+"</td>"+
+        "<td style=\"padding:12px 16px;font-size:13px;color:var(--txt-s)\">"+dataFmt+"<br><span style=\"font-size:10px;color:var(--txt-s);opacity:.75;\">"+_diaSem+(_semLabel?" · "+_semLabel:"")+"</span></td>"+
         "<td style=\"padding:12px 16px\">"+badge+"</td>"+
         "<td style=\"padding:12px 16px;font-size:13px;max-width:250px\">"+descInfo+"</td>"+
         "<td style=\"padding:12px 16px;font-size:13px;color:var(--txt-s)\">"+fazNome+talTag+"</td>"+
@@ -178,7 +183,8 @@ window.module_lancamentos = async function() {
     const maqOpts = maqsDoFaz.map(function(m){
       return "<option value=\""+m.id+"\" data-custo=\""+( m.custo_hora||0)+"\" data-tc=\""+( m.tipo_cobranca||"por_hora")+"\" data-custo-ha=\""+( m.custo_ha||0)+"\" data-custo-dia=\""+( m.custo_dia||0)+"\""+((l&&l.maquina_id===m.id)?" selected":"")+">"+esc(m.nome)+"</option>";
     }).join("");
-    const insumoOpts = _buildInsumoOpts(_insumos, false);
+    const catNome = (function(){ var el=document.getElementById('lanc_cat'); return el && el.selectedIndex>=0 ? el.options[el.selectedIndex].text : ''; })();
+    const insumoOpts = _buildInsumoOpts(_insumos, false, catNome);
     const unidades = ["kg","L","g","mL","sc","un","cx","t","h","d"];
     const unidOpts = unidades.map(function(u){
       var sel = (l&&!l.maquina_id&&l.unidade===u) ? " selected" : "";
@@ -349,6 +355,17 @@ window.module_lancamentos = async function() {
             }
           }
         }
+                // Atualiza horimetro e registra depreciação da maquina
+        if (maqId && qtd > 0 && unid === 'h' && isNovo) {
+          const { data: maqData } = await sb.from('maquinas').select('horimetro_atual,custo_hora,nome').eq('id', maqId).single();
+          if (maqData) {
+            const novoHorimetro = (maqData.horimetro_atual || 0) + qtd;
+            await sb.from('maquinas').update({ horimetro_atual: novoHorimetro }).eq('id', maqId);
+            const custoDep = (maqData.custo_hora || 0) * qtd;
+            await sb.from('manutencoes').insert({ maquina_id: maqId, tipo: 'uso_operacional', descricao: 'Uso: '+qtd+'h - '+(desc||''), custo: custoDep, horimetro: novoHorimetro, data: data });
+            toast('🚜 '+maqData.nome+': +'+qtd+'h | Horímetro: '+novoHorimetro+'h','ok');
+          }
+        }
         closeModal(); render();
       }
     );
@@ -488,6 +505,13 @@ window.module_lancamentos = async function() {
       if(qtd > 0 && ins.preco_unitario > 0 && custoInput)
         custoInput.value = (qtd * ins.preco_unitario).toFixed(2);
     }
+    // Atualiza lista de insumos ao mudar categoria
+    var _insSel2 = document.getElementById('lanc_insumo');
+    if(_insSel2 && window._lancInsumos) {
+      var catSelEl = document.getElementById('lanc_cat');
+      var catN2 = catSelEl && catSelEl.selectedIndex>=0 ? catSelEl.options[catSelEl.selectedIndex].text : '';
+      _insSel2.innerHTML = '<option value="">Nenhum</option>' + _buildInsumoOpts(window._lancInsumos, false, catN2);
+    }
   };
 
   // Filter form dropdowns when fazenda changes
@@ -599,11 +623,13 @@ window.module_lancamentos = async function() {
     );
   };
 
-  function _buildInsumoOpts(insumos, filterCert){
+  function _buildInsumoOpts(insumos, filterCert, catFilter){
+    var catMap = {'Defensivos':['herbicida','fungicida','inseticida','acaricida','nematicida'],'Sementes':['semente'],'Fertilizantes':['fertilizante','corretivo','micronutriente'],'Combustível':['combustivel','lubrificante']};
+    var allowed = (catFilter && catMap[catFilter]) ? catMap[catFilter] : null;
     return insumos
-      .filter(function(i){ return !filterCert || i.certificacao_permitida === true; })
-      .map(function(i){ return "<option value=\""+i.id+"\">"+esc(i.nome)+"</option>"; })
-      .join("");
+      .filter(function(i){ if(filterCert && !i.certificacao_permitida) return false; if(allowed && i.categoria && allowed.indexOf(i.categoria)<0) return false; return true; })
+      .map(function(i){ return '<option value=\''+i.id+'\'>'+ esc(i.nome)+'</option>'; })
+      .join('');
   }
 
   async function render(){
