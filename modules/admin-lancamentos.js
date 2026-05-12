@@ -16,7 +16,7 @@ window.module_lancamentos = async function() {
       sb.from("safras").select("id,nome,fazenda_id,status").order("nome"),
       sb.from("talhoes").select("id,nome,fazenda_id,segue_certificacao").order("nome"),
       sb.from("operadores").select("id,nome,fazenda_id").order("nome"),
-      sb.from("insumos").select("id,nome,unidade,preco_unitario,certificacao_permitida,fazenda_id,culturas,dose_recomendada,modo_aplicacao,principio_ativo").order("nome"),
+      sb.from("insumos").select("id,nome,unidade,preco_unitario,certificacao_permitida,fazenda_id,culturas,dose_recomendada,modo_aplicacao,principio_ativo,categoria").order("nome"),
       sb.from("maquinas").select("id,nome,fazenda_id,tipo,custo_hora,horimetro_atual").order("nome"),
       sb.from("lancamentos").select("*").order("data_lancamento",{ascending:false}).limit(300),
     sb.from("categorias_lancamento").select("id,nome,tipo").order("nome")
@@ -366,6 +366,17 @@ window.module_lancamentos = async function() {
             toast('🚜 '+maqData.nome+': +'+qtd+'h | Horímetro: '+novoHorimetro+'h','ok');
           }
         }
+                // Atualiza horimetro e registra depreciação da maquina
+        if (maqId && qtd > 0 && unid === 'h' && isNovo) {
+          const { data: maqData } = await sb.from('maquinas').select('horimetro_atual,custo_hora,nome').eq('id', maqId).single();
+          if (maqData) {
+            const novoHorimetro = (maqData.horimetro_atual || 0) + qtd;
+            await sb.from('maquinas').update({ horimetro_atual: novoHorimetro }).eq('id', maqId);
+            const custoDep = (maqData.custo_hora || 0) * qtd;
+            await sb.from('manutencoes').insert({ maquina_id: maqId, tipo: 'uso_operacional', descricao: 'Uso: '+qtd+'h - '+(desc||''), custo: custoDep, horimetro: novoHorimetro, data: data });
+            toast('🚜 '+maqData.nome+': +'+qtd+'h | Horímetro: '+novoHorimetro+'h','ok');
+          }
+        }
         closeModal(); render();
       }
     );
@@ -504,6 +515,13 @@ window.module_lancamentos = async function() {
       var qtd = qtdInput ? parseFloat(qtdInput.value) : 0;
       if(qtd > 0 && ins.preco_unitario > 0 && custoInput)
         custoInput.value = (qtd * ins.preco_unitario).toFixed(2);
+    }
+    // Atualiza lista de insumos ao mudar categoria
+    var _insSel2 = document.getElementById('lanc_insumo');
+    if(_insSel2 && window._lancInsumos) {
+      var catSelEl = document.getElementById('lanc_cat');
+      var catN2 = catSelEl && catSelEl.selectedIndex>=0 ? catSelEl.options[catSelEl.selectedIndex].text : '';
+      _insSel2.innerHTML = '<option value="">Nenhum</option>' + _buildInsumoOpts(window._lancInsumos, false, catN2);
     }
     // Atualiza lista de insumos ao mudar categoria
     var _insSel2 = document.getElementById('lanc_insumo');
