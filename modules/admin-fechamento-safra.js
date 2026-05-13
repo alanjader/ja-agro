@@ -145,7 +145,7 @@
       }
       
       if(f.observacoes){
-        if(y > H-30){ doc.addPage(); y = MARGIN; }
+        if(y > H-40){ doc.addPage(); y = MARGIN; }
         doc.setFont("helvetica","bold"); doc.setFontSize(11);
         doc.text("OBSERVACOES", MARGIN, y); y+=5;
         doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(60,60,60);
@@ -157,12 +157,27 @@
       var pages = doc.internal.getNumberOfPages();
       for(var p=1; p<=pages; p++){
         doc.setPage(p);
+        // linha separadora
         doc.setDrawColor(45,125,50);
-        doc.setLineWidth(0.3);
-        doc.line(MARGIN, H-12, W-MARGIN, H-12);
-        doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(120,120,120);
-        doc.text("JA Agro Intelligence - Relatorio gerado automaticamente", MARGIN, H-7);
-        doc.text("Pagina " + p + " de " + pages, W-MARGIN, H-7, {align:"right"});
+        doc.setLineWidth(0.4);
+        doc.line(MARGIN, H-22, W-MARGIN, H-22);
+        // bloco legal
+        doc.setFont("helvetica","bold"); doc.setFontSize(7); doc.setTextColor(45,125,50);
+        doc.text("AVISO LEGAL", MARGIN, H-18);
+        doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(90,90,90);
+        var aviso1 = "Direitos de imagem e marca reservados (c) " + new Date().getFullYear() + " JA Agro Intelligence. Reproducao, redistribuicao ou uso comercial nao autorizados sao proibidos.";
+        var aviso2 = "Documento confidencial - Contem dados sigilosos protegidos pela LGPD (Lei nº 13.709/2018). Destinado exclusivamente ao titular/produtor. E vedada a divulgacao a terceiros sem autorizacao expressa.";
+        var l1 = doc.splitTextToSize(aviso1, W-2*MARGIN);
+        var l2 = doc.splitTextToSize(aviso2, W-2*MARGIN);
+        doc.text(l1, MARGIN, H-15);
+        doc.text(l2, MARGIN, H-15 + l1.length*2.8);
+        // rodape final
+        doc.setDrawColor(200,200,200);
+        doc.setLineWidth(0.2);
+        doc.line(MARGIN, H-7, W-MARGIN, H-7);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(120,120,120);
+        doc.text("JA Agro Intelligence - Relatorio gerado em " + new Date().toLocaleString("pt-BR"), MARGIN, H-3.5);
+        doc.text("Pagina " + p + " de " + pages, W-MARGIN, H-3.5, {align:"right"});
       }
       
       var safeNome = ((f.safras && f.safras.nome) || "Fechamento").replace(/[^a-zA-Z0-9_-]/g,"_");
@@ -1500,7 +1515,7 @@ window._legacyFechamentoCreate = async function() {
       }
       
       if(f.observacoes){
-        if(y > H-30){ doc.addPage(); y = MARGIN; }
+        if(y > H-40){ doc.addPage(); y = MARGIN; }
         doc.setFont("helvetica","bold"); doc.setFontSize(11);
         doc.text("OBSERVACOES", MARGIN, y); y+=5;
         doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(60,60,60);
@@ -1512,12 +1527,27 @@ window._legacyFechamentoCreate = async function() {
       var pages = doc.internal.getNumberOfPages();
       for(var p=1; p<=pages; p++){
         doc.setPage(p);
+        // linha separadora
         doc.setDrawColor(45,125,50);
-        doc.setLineWidth(0.3);
-        doc.line(MARGIN, H-12, W-MARGIN, H-12);
-        doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(120,120,120);
-        doc.text("JA Agro Intelligence - Relatorio gerado automaticamente", MARGIN, H-7);
-        doc.text("Pagina " + p + " de " + pages, W-MARGIN, H-7, {align:"right"});
+        doc.setLineWidth(0.4);
+        doc.line(MARGIN, H-22, W-MARGIN, H-22);
+        // bloco legal
+        doc.setFont("helvetica","bold"); doc.setFontSize(7); doc.setTextColor(45,125,50);
+        doc.text("AVISO LEGAL", MARGIN, H-18);
+        doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(90,90,90);
+        var aviso1 = "Direitos de imagem e marca reservados (c) " + new Date().getFullYear() + " JA Agro Intelligence. Reproducao, redistribuicao ou uso comercial nao autorizados sao proibidos.";
+        var aviso2 = "Documento confidencial - Contem dados sigilosos protegidos pela LGPD (Lei nº 13.709/2018). Destinado exclusivamente ao titular/produtor. E vedada a divulgacao a terceiros sem autorizacao expressa.";
+        var l1 = doc.splitTextToSize(aviso1, W-2*MARGIN);
+        var l2 = doc.splitTextToSize(aviso2, W-2*MARGIN);
+        doc.text(l1, MARGIN, H-15);
+        doc.text(l2, MARGIN, H-15 + l1.length*2.8);
+        // rodape final
+        doc.setDrawColor(200,200,200);
+        doc.setLineWidth(0.2);
+        doc.line(MARGIN, H-7, W-MARGIN, H-7);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(120,120,120);
+        doc.text("JA Agro Intelligence - Relatorio gerado em " + new Date().toLocaleString("pt-BR"), MARGIN, H-3.5);
+        doc.text("Pagina " + p + " de " + pages, W-MARGIN, H-3.5, {align:"right"});
       }
       
       var safeNome = ((f.safras && f.safras.nome) || "Fechamento").replace(/[^a-zA-Z0-9_-]/g,"_");
