@@ -25,6 +25,17 @@ window.module_fechamento_safra = async function(){
   }
   var BENCH = {Soja:{custoSc:90,prod:60,margem:25}, Milho:{custoSc:35,prod:170,margem:20}, Cafe:{custoSc:600,prod:30,margem:30}, Cana:{custoSc:60,prod:80,margem:18}, Algodao:{custoSc:300,prod:280,margem:22}, Trigo:{custoSc:45,prod:55,margem:18}, Sorgo:{custoSc:30,prod:90,margem:15}, Feijao:{custoSc:120,prod:30,margem:20}, Arroz:{custoSc:50,prod:120,margem:15}};
 
+    async function ensureChart(){
+    if(window.Chart) return true;
+    return new Promise(function(res){
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+      s.onload = function(){ res(true); };
+      s.onerror = function(){ res(false); };
+      document.head.appendChild(s);
+    });
+  }
+  await ensureChart();
   root.innerHTML = '<div style="padding:8px 16px 60px;max-width:1280px;margin:0 auto;"><div id="fsTabs" style="display:flex;gap:6px;border-bottom:2px solid #e0e0e0;margin-bottom:18px;flex-wrap:wrap;"></div><div id="fsContent">Carregando...</div></div>';
 
   var TABS = [
