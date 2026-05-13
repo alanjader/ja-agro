@@ -1,3 +1,181 @@
+
+// === PDF functions exposed at top-level (also defined inside legacy) ===
+(function(){
+  window._fsEnsurePdf = async function(){
+    if(window.jspdf && window.jspdf.jsPDF) return true;
+    await new Promise((res,rej)=>{var s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+    await new Promise((res,rej)=>{var s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.0/jspdf.plugin.autotable.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+    return !!(window.jspdf && window.jspdf.jsPDF);
+  };
+  
+  window._fsGerarPdf = async function(fechId){
+    try {
+      var btn = event && event.target; var oldT=""; if(btn){ btn.disabled=true; oldT=btn.innerText; btn.innerText="Gerando PDF..."; }
+      await window._fsEnsurePdf();
+      var fRes = await sb.from("fechamento_safra").select("*,safras(nome,cultura,ano_agricola,data_plantio,data_colheita),fazendas(nome,cidade,estado),fechamento_talhao(*,talhoes(nome))").eq("id",fechId).single();
+      if(fRes.error) throw fRes.error;
+      var f = fRes.data;
+      var vRes = await sb.from("vendas_graos").select("*").eq("safra_id",f.safra_id).in("status",["confirmado","entregue","faturado"]);
+      var vendas = vRes.data || [];
+      
+      var jsPDF = window.jspdf.jsPDF;
+      var doc = new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+      var W = doc.internal.pageSize.getWidth();
+      var H = doc.internal.pageSize.getHeight();
+      var MARGIN = 14;
+      var y = MARGIN;
+      
+      doc.setFillColor(45,125,50);
+      doc.rect(0,0,W,32,"F");
+      doc.setTextColor(255,255,255);
+      doc.setFont("helvetica","bold");
+      doc.setFontSize(18);
+      doc.text("RELATORIO DE FECHAMENTO DE SAFRA", MARGIN, 14);
+      doc.setFontSize(10);
+      doc.setFont("helvetica","normal");
+      doc.text("JA Agro Intelligence - Sistema de Gestao Agricola", MARGIN, 21);
+      doc.text("Emitido em: " + new Date().toLocaleString("pt-BR"), MARGIN, 27);
+      y = 40;
+      
+      doc.setTextColor(30,30,30);
+      doc.setFont("helvetica","bold"); doc.setFontSize(13);
+      doc.text((f.safras && f.safras.nome) || "Safra", MARGIN, y); y+=6;
+      doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(100,100,100);
+      doc.text((((f.safras && f.safras.cultura) || "") + " " + ((f.safras && f.safras.ano_agricola) || "")).trim(), MARGIN, y); y+=5;
+      doc.text(((f.fazendas && f.fazendas.nome) || "") + " - " + ((f.fazendas && f.fazendas.cidade) || "") + "/" + ((f.fazendas && f.fazendas.estado) || ""), MARGIN, y); y+=5;
+      doc.text("Tipo: " + (f.tipo_fechamento==="total"?"Total (safra inteira)":"Parcial (alguns talhoes)") + " | Data: " + new Date(f.data_fechamento).toLocaleDateString("pt-BR") + " | Status: " + (f.status||"-").toUpperCase(), MARGIN, y);
+      y += 10;
+      
+      var fmtBR = function(n){return "R$ " + parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});};
+      var fmtN = function(n,d){return parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:d||0,maximumFractionDigits:d||1});};
+      var kpis = [
+        ["Area Total", fmtN(f.area_total_ha,2) + " ha"],
+        ["Producao", fmtN(f.producao_total_sc,1) + " sc"],
+        ["Produtividade", fmtN(f.produtividade_sc_ha,1) + " sc/ha"],
+        ["Custo Total", fmtBR(f.custo_total)],
+        ["Custo/sc", fmtBR(f.custo_sc)],
+        ["Custo/ha", fmtBR(f.custo_ha)],
+        ["Receita", fmtBR(f.receita_vendas)],
+        ["Resultado", fmtBR(f.resultado_liquido)],
+        ["Margem", fmtN(f.margem_pct,1) + " %"]
+      ];
+      var cardW = (W - 2*MARGIN - 16)/3, cardH = 18;
+      kpis.forEach(function(kp,i){
+        var col = i%3, row = Math.floor(i/3);
+        var x = MARGIN + col*(cardW+8);
+        var cy = y + row*(cardH+4);
+        doc.setFillColor(245,248,245); doc.setDrawColor(45,125,50);
+        doc.roundedRect(x,cy,cardW,cardH,2,2,"FD");
+        doc.setTextColor(100,100,100); doc.setFont("helvetica","normal"); doc.setFontSize(8);
+        doc.text(kp[0].toUpperCase(), x+3, cy+5);
+        doc.setTextColor(45,125,50); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text(kp[1], x+3, cy+13);
+      });
+      y += Math.ceil(kpis.length/3)*(cardH+4) + 6;
+      
+      doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(30,30,30);
+      doc.text("DETALHAMENTO DE CUSTOS", MARGIN, y); y+=2;
+      doc.autoTable({
+        startY: y+2,
+        head: [["Categoria","Valor (R$)","% do total"]],
+        body: [
+          ["Insumos", fmtBR(f.custo_insumos), fmtN(f.custo_total?(f.custo_insumos/f.custo_total*100):0,1)+"%"],
+          ["Mao de Obra", fmtBR(f.custo_mao_obra), fmtN(f.custo_total?(f.custo_mao_obra/f.custo_total*100):0,1)+"%"],
+          ["Maquinas", fmtBR(f.custo_maquinas), fmtN(f.custo_total?(f.custo_maquinas/f.custo_total*100):0,1)+"%"],
+          ["Depreciacao", fmtBR(f.custo_depreciacao), fmtN(f.custo_total?(f.custo_depreciacao/f.custo_total*100):0,1)+"%"],
+          ["Outros", fmtBR(f.custo_outros), fmtN(f.custo_total?(f.custo_outros/f.custo_total*100):0,1)+"%"]
+        ],
+        foot: [["TOTAL", fmtBR(f.custo_total), "100,0%"]],
+        theme:"grid",
+        headStyles:{fillColor:[45,125,50],textColor:255,fontStyle:"bold",fontSize:9},
+        footStyles:{fillColor:[230,240,230],textColor:[30,30,30],fontStyle:"bold"},
+        styles:{fontSize:9,cellPadding:2},
+        margin:{left:MARGIN,right:MARGIN}
+      });
+      y = doc.lastAutoTable.finalY + 8;
+      
+      if(y > H-50){ doc.addPage(); y = MARGIN; }
+      doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(30,30,30);
+      doc.text("DETALHAMENTO POR TALHAO", MARGIN, y);
+      var talhoes = (f.fechamento_talhao || []).map(function(t){
+        return [
+          (t.talhoes && t.talhoes.nome) || "-",
+          fmtN(t.area_ha,2),
+          fmtN(t.producao_sc,1),
+          fmtN(t.produtividade_sc_ha,1),
+          fmtBR(t.custo_total),
+          fmtBR(t.custo_sc),
+          fmtBR(t.receita_proporcional),
+          fmtBR(t.resultado_liquido),
+          (t.status_talhao||"-").toUpperCase()
+        ];
+      });
+      doc.autoTable({
+        startY: y+2,
+        head: [["Talhao","Area (ha)","Producao (sc)","Prod (sc/ha)","Custo Total","Custo/sc","Receita","Resultado","Status"]],
+        body: talhoes,
+        theme:"grid",
+        headStyles:{fillColor:[45,125,50],textColor:255,fontStyle:"bold",fontSize:8},
+        styles:{fontSize:8,cellPadding:1.5},
+        margin:{left:MARGIN,right:MARGIN}
+      });
+      y = doc.lastAutoTable.finalY + 8;
+      
+      if(vendas.length){
+        if(y > H-50){ doc.addPage(); y = MARGIN; }
+        doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(30,30,30);
+        doc.text("VENDAS DA SAFRA", MARGIN, y);
+        doc.autoTable({
+          startY: y+2,
+          head: [["Data","Cultura","Quantidade (sc)","Preco (R$/sc)","Total (R$)","Status"]],
+          body: vendas.map(function(v){return [
+            v.data_venda?new Date(v.data_venda).toLocaleDateString("pt-BR"):"-",
+            v.cultura||"-",
+            fmtN(v.quantidade_sc,1),
+            fmtBR(v.preco_saca),
+            fmtBR((v.quantidade_sc||0)*(v.preco_saca||0)),
+            (v.status||"-").toUpperCase()
+          ];}),
+          theme:"striped",
+          headStyles:{fillColor:[45,125,50],textColor:255,fontStyle:"bold",fontSize:8},
+          styles:{fontSize:8,cellPadding:1.5},
+          margin:{left:MARGIN,right:MARGIN}
+        });
+        y = doc.lastAutoTable.finalY + 8;
+      }
+      
+      if(f.observacoes){
+        if(y > H-30){ doc.addPage(); y = MARGIN; }
+        doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text("OBSERVACOES", MARGIN, y); y+=5;
+        doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(60,60,60);
+        var obsLines = doc.splitTextToSize(f.observacoes, W-2*MARGIN);
+        doc.text(obsLines, MARGIN, y);
+        y += obsLines.length*4 + 6;
+      }
+      
+      var pages = doc.internal.getNumberOfPages();
+      for(var p=1; p<=pages; p++){
+        doc.setPage(p);
+        doc.setDrawColor(45,125,50);
+        doc.setLineWidth(0.3);
+        doc.line(MARGIN, H-12, W-MARGIN, H-12);
+        doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(120,120,120);
+        doc.text("JA Agro Intelligence - Relatorio gerado automaticamente", MARGIN, H-7);
+        doc.text("Pagina " + p + " de " + pages, W-MARGIN, H-7, {align:"right"});
+      }
+      
+      var safeNome = ((f.safras && f.safras.nome) || "Fechamento").replace(/[^a-zA-Z0-9_-]/g,"_");
+      var fname = "Fechamento_" + safeNome + "_" + new Date().toISOString().slice(0,10) + ".pdf";
+      doc.save(fname);
+      
+      if(btn){ btn.disabled=false; btn.innerText=oldT; }
+    } catch(e){
+      console.error("PDF error:",e);
+      alert("Erro ao gerar PDF: " + e.message);
+    }
+  };
+})();
 window.module_fechamento_safra = async function(){
   var root = document.getElementById("mainContent") || document.getElementById("moduleArea") || document.getElementById("conteudo") || document.querySelector(".main-content") || document.body;
   if(typeof sb === "undefined"){ root.innerHTML = "<p style=padding:20px>Conexao com banco de dados nao inicializada.</p>"; return; }
