@@ -1,4 +1,530 @@
-window.module_fechamento_safra = async function() {
+window.module_fechamento_safra = async function(){
+  var root = document.getElementById("moduleArea") || document.getElementById("conteudo") || document.querySelector(".main-content") || document.body;
+  if(!window.sb){ root.innerHTML = "<p style=padding:20px>Conexao com banco de dados nao inicializada.</p>"; return; }
+
+  function fmtBrl(n){ return "R$ " + parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function fmtBrlK(n){ var v=parseFloat(n||0); if(Math.abs(v)>=1e6) return "R$ "+(v/1e6).toFixed(2)+"M"; if(Math.abs(v)>=1e3) return "R$ "+(v/1e3).toFixed(1)+"k"; return fmtBrl(v); }
+  function fmtSc(n){ return parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:1}); }
+  function fmtHa(n){ return parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) + " ha"; }
+  function fmtPct(n){ return parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1}) + "%"; }
+  function fmtDate(d){ if(!d) return "-"; try{ return new Date(d).toLocaleDateString("pt-BR"); }catch(e){ return d; } }
+  function esc(s){ return String(s||"").replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];}); }
+  function statusBadge(st){
+    var cfg = {confirmado:["#1e7e34","#d4edda","Confirmado"], rascunho:["#856404","#fff3cd","Rascunho"], pendente:["#856404","#fff3cd","Pendente"], cancelado:["#721c24","#f8d7da","Cancelado"]};
+    var c = cfg[st] || ["#444","#eee", st||"-"];
+    return "<span style='background:"+c[1]+";color:"+c[0]+";padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;'>"+c[2]+"</span>";
+  }
+  function medal(i){ return i===0?"&#129351;":i===1?"&#129352;":i===2?"&#129353;":"#"+(i+1); }
+  function trend(real, ref, inverso){
+    if(!ref || isNaN(ref)) return "";
+    var diff = ((real-ref)/ref)*100;
+    var ok = inverso ? diff<0 : diff>0;
+    var sign = diff>=0?"+":"";
+    var color = ok?"#28a745":"#dc3545";
+    return "<span style='color:"+color+";font-size:11px;font-weight:600;margin-left:6px;'>"+sign+diff.toFixed(1)+"%</span>";
+  }
+  var BENCH = {Soja:{custoSc:90,prod:60,margem:25}, Milho:{custoSc:35,prod:170,margem:20}, Cafe:{custoSc:600,prod:30,margem:30}, Cana:{custoSc:60,prod:80,margem:18}, Algodao:{custoSc:300,prod:280,margem:22}, Trigo:{custoSc:45,prod:55,margem:18}, Sorgo:{custoSc:30,prod:90,margem:15}, Feijao:{custoSc:120,prod:30,margem:20}, Arroz:{custoSc:50,prod:120,margem:15}};
+
+  root.innerHTML = '<div style="padding:8px 16px 60px;max-width:1280px;margin:0 auto;"><div id="fsTabs" style="display:flex;gap:6px;border-bottom:2px solid #e0e0e0;margin-bottom:18px;flex-wrap:wrap;"></div><div id="fsContent">Carregando...</div></div>';
+
+  var TABS = [
+    {id:"visao", label:"&#128202; Visao Geral"},
+    {id:"lista", label:"&#128203; Lista Detalhada"},
+    {id:"comp",  label:"&#127942; Comparativo"},
+    {id:"novo",  label:"&#10133; Novo Fechamento"}
+  ];
+  var activeTab = "visao";
+  function renderTabs(){
+    var el = document.getElementById("fsTabs");
+    el.innerHTML = TABS.map(function(t){
+      var act = t.id===activeTab;
+      return "<button data-tab='"+t.id+"' style='padding:10px 18px;border:none;background:"+(act?"#1e7e34":"transparent")+";color:"+(act?"#fff":"#444")+";border-radius:8px 8px 0 0;font-weight:600;cursor:pointer;font-size:14px;transition:all .15s;'>"+t.label+"</button>";
+    }).join("");
+    Array.from(el.querySelectorAll("button")).forEach(function(b){
+      b.addEventListener("click", function(){ activeTab = b.getAttribute("data-tab"); renderTabs(); renderContent(); });
+    });
+  }
+
+  var DATA = null;
+  async function loadData(){
+    var fazFilter = sessionStorage.getItem("homeFazSel");
+    var q = sb.from("fechamento_safra").select("*,safras(id,nome,cultura,ano_agricola,fazenda_id,data_plantio,data_colheita,fazendas(nome)),fechamento_talhao(id,talhao_id,area_ha,producao_sc,produtividade_sc_ha,custo_total,custo_sc,resultado_liquido,status_talhao,talhoes(nome))").order("data_fechamento",{ascending:false});
+    if(fazFilter && fazFilter!=="all"){ q = q.eq("fazenda_id", fazFilter); }
+    var r = await q;
+    var fechs = r.data || [];
+    var vendasR = await sb.from("vendas_graos").select("safra_id,quantidade_sc,preco_saca,cultura,status").in("status",["confirmado","entregue","faturado"]).limit(2000);
+    var fazsR = await sb.from("fazendas").select("id,nome");
+    return { fechs: fechs, vendas: vendasR.data||[], fazendas: fazsR.data||[], err: r.error };
+  }
+
+  function renderVisao(){
+    var c = document.getElementById("fsContent");
+    if(!DATA){ c.innerHTML = "Carregando..."; return; }
+    var fechs = DATA.fechs;
+    if(!fechs.length){
+      c.innerHTML = '<div style="background:#fff;padding:60px 30px;border-radius:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06);"><div style="font-size:64px;">&#128202;</div><h2 style="color:#444;margin:12px 0;">Nenhum fechamento de safra ainda</h2><p style="color:#888;">Inicie o primeiro fechamento na aba "Novo Fechamento" para apurar resultados e gerar relatorios.</p></div>';
+      return;
+    }
+    var totReceita=0, totCusto=0, totInsumos=0, totMaoObra=0, totMaqs=0, totDep=0, totOutros=0, totArea=0, totProd=0, somaMargem=0, confs=0, rasc=0;
+    fechs.forEach(function(f){
+      totReceita+=parseFloat(f.receita_vendas||0);
+      totCusto+=parseFloat(f.custo_total||0);
+      totInsumos+=parseFloat(f.custo_insumos||0);
+      totMaoObra+=parseFloat(f.custo_mao_obra||0);
+      totMaqs+=parseFloat(f.custo_maquinas||0);
+      totDep+=parseFloat(f.custo_depreciacao||0);
+      totOutros+=parseFloat(f.custo_outros||0);
+      totArea+=parseFloat(f.area_total_ha||0);
+      totProd+=parseFloat(f.producao_total_sc||0);
+      somaMargem+=parseFloat(f.margem_pct||0);
+      if(f.status==="confirmado") confs++; else rasc++;
+    });
+    var margemMedia = fechs.length ? (somaMargem/fechs.length) : 0;
+    var resultLiq = totReceita - totCusto;
+    var roi = totCusto ? (resultLiq/totCusto)*100 : 0;
+    var ordMargem = fechs.slice().sort(function(a,b){ return parseFloat(b.margem_pct||0) - parseFloat(a.margem_pct||0); });
+    var melhor = ordMargem[0];
+    var pior = ordMargem[ordMargem.length-1];
+
+    var html = "";
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px;">';
+    var kpis = [
+      {l:"Fechamentos", v:fechs.length+"", sub: confs+" confirmados"+(rasc?" / "+rasc+" rascunho":""), cor:"#1e7e34"},
+      {l:"Receita Total", v:fmtBrlK(totReceita), sub:"em vendas", cor:"#2e7d32"},
+      {l:"Custo Total", v:fmtBrlK(totCusto), sub:fmtBrl(totCusto/(totArea||1))+"/ha medio", cor:"#c0392b"},
+      {l:"Resultado", v:fmtBrlK(resultLiq), sub:(resultLiq>=0?"Lucro":"Prejuizo"), cor:resultLiq>=0?"#1565c0":"#c0392b"},
+      {l:"Margem Media", v:fmtPct(margemMedia), sub:"ROI "+fmtPct(roi), cor:"#7b1fa2"},
+      {l:"Area Apurada", v:fmtHa(totArea), sub:fmtSc(totProd)+" sc", cor:"#37474f"}
+    ];
+    kpis.forEach(function(k){
+      html += '<div style="background:#fff;border-left:4px solid '+k.cor+';padding:14px 16px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.05);">'
+        +'<div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:.5px;">'+k.l+'</div>'
+        +'<div style="font-size:22px;font-weight:700;color:'+k.cor+';margin:4px 0;">'+k.v+'</div>'
+        +'<div style="font-size:11px;color:#888;">'+k.sub+'</div></div>';
+    });
+    html += '</div>';
+
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:18px;">';
+    html += '<div style="background:#fff;padding:16px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.05);"><h4 style="margin:0 0 10px;color:#333;">&#128200; Composicao de Custos</h4><canvas id="fsChartCustos" height="220"></canvas></div>';
+    html += '<div style="background:#fff;padding:16px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.05);"><h4 style="margin:0 0 10px;color:#333;">&#127806; Receita por Cultura</h4><canvas id="fsChartCulturas" height="220"></canvas></div>';
+    html += '<div style="background:#fff;padding:16px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.05);"><h4 style="margin:0 0 10px;color:#333;">&#128202; Margem por Fechamento</h4><canvas id="fsChartMargem" height="220"></canvas></div>';
+    html += '</div>';
+
+    if(melhor && pior && melhor!==pior){
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:18px;">';
+      html += '<div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);padding:16px;border-radius:10px;border-left:4px solid #1e7e34;">'
+        +'<div style="font-size:11px;color:#1e7e34;font-weight:700;letter-spacing:.5px;">&#127942; MELHOR DESEMPENHO</div>'
+        +'<div style="font-size:17px;font-weight:700;color:#1b5e20;margin:6px 0;">'+esc(melhor.safras&&melhor.safras.nome||"-")+'</div>'
+        +'<div style="font-size:13px;color:#2e7d32;">Margem '+fmtPct(melhor.margem_pct)+' &middot; '+esc(melhor.safras&&melhor.safras.fazendas&&melhor.safras.fazendas.nome||"-")+'</div></div>';
+      html += '<div style="background:linear-gradient(135deg,#ffebee,#ffcdd2);padding:16px;border-radius:10px;border-left:4px solid #c62828;">'
+        +'<div style="font-size:11px;color:#c62828;font-weight:700;letter-spacing:.5px;">&#9888; ATENCAO REQUERIDA</div>'
+        +'<div style="font-size:17px;font-weight:700;color:#b71c1c;margin:6px 0;">'+esc(pior.safras&&pior.safras.nome||"-")+'</div>'
+        +'<div style="font-size:13px;color:#c62828;">Margem '+fmtPct(pior.margem_pct)+' &middot; '+esc(pior.safras&&pior.safras.fazendas&&pior.safras.fazendas.nome||"-")+'</div></div>';
+      html += '</div>';
+    }
+
+    c.innerHTML = html;
+
+    setTimeout(function(){
+      try{
+        var Chart = window.Chart;
+        if(!Chart) return;
+        var ctx1 = document.getElementById("fsChartCustos");
+        if(ctx1) new Chart(ctx1, {type:"doughnut", data:{labels:["Insumos","Mao de Obra","Maquinas","Depreciacao","Outros"], datasets:[{data:[totInsumos,totMaoObra,totMaqs,totDep,totOutros], backgroundColor:["#1e7e34","#1565c0","#ef6c00","#6a1b9a","#546e7a"]}]}, options:{plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:11}}}}, responsive:true, maintainAspectRatio:false}});
+        var rc = {};
+        fechs.forEach(function(f){ var k = f.safras&&f.safras.cultura||"Outros"; rc[k]=(rc[k]||0)+parseFloat(f.receita_vendas||0); });
+        var lbs = Object.keys(rc); var vls = lbs.map(function(k){return rc[k];});
+        var ctx2 = document.getElementById("fsChartCulturas");
+        if(ctx2) new Chart(ctx2,{type:"bar", data:{labels:lbs, datasets:[{label:"Receita", data:vls, backgroundColor:"#2e7d32"}]}, options:{plugins:{legend:{display:false}}, scales:{y:{ticks:{callback:function(v){return fmtBrlK(v);}}}}, responsive:true, maintainAspectRatio:false}});
+        var sorted = fechs.slice().sort(function(a,b){ return new Date(a.data_fechamento) - new Date(b.data_fechamento); });
+        var lbs3 = sorted.map(function(f){ return (f.safras&&f.safras.nome||"-").slice(0,18); });
+        var vls3 = sorted.map(function(f){ return parseFloat(f.margem_pct||0); });
+        var ctx3 = document.getElementById("fsChartMargem");
+        if(ctx3) new Chart(ctx3,{type:"line", data:{labels:lbs3, datasets:[{label:"Margem %", data:vls3, borderColor:"#7b1fa2", backgroundColor:"rgba(123,31,162,.15)", fill:true, tension:.3}]}, options:{plugins:{legend:{display:false}}, scales:{y:{ticks:{callback:function(v){return v+"%";}}}}, responsive:true, maintainAspectRatio:false}});
+      }catch(e){ console.error("Chart err", e); }
+    }, 50);
+  }
+
+  var listFilters = { fazenda:"", cultura:"", ano:"", status:"", busca:"" };
+  function renderLista(){
+    var c = document.getElementById("fsContent");
+    if(!DATA){ c.innerHTML = "Carregando..."; return; }
+    var fechs = DATA.fechs.slice();
+    var culturas = Array.from(new Set(fechs.map(function(f){return f.safras&&f.safras.cultura;}).filter(Boolean))).sort();
+    var anos = Array.from(new Set(fechs.map(function(f){return f.safras&&f.safras.ano_agricola;}).filter(Boolean))).sort().reverse();
+    var fazs = DATA.fazendas.slice().sort(function(a,b){return (a.nome||"").localeCompare(b.nome||"");});
+    fechs = fechs.filter(function(f){
+      if(listFilters.fazenda && f.fazenda_id!==listFilters.fazenda) return false;
+      if(listFilters.cultura && (f.safras&&f.safras.cultura)!==listFilters.cultura) return false;
+      if(listFilters.ano && (f.safras&&f.safras.ano_agricola)!==listFilters.ano) return false;
+      if(listFilters.status && f.status!==listFilters.status) return false;
+      if(listFilters.busca){
+        var q = listFilters.busca.toLowerCase();
+        var nm = ((f.safras&&f.safras.nome)||"")+" "+((f.safras&&f.safras.fazendas&&f.safras.fazendas.nome)||"")+" "+(f.safras&&f.safras.cultura||"");
+        if(nm.toLowerCase().indexOf(q)<0) return false;
+      }
+      return true;
+    });
+
+    var html = '<div style="background:#fff;padding:14px;border-radius:10px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,.05);display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:end;">';
+    html += '<div><label style="font-size:11px;color:#666;font-weight:600;">FAZENDA</label><select id="fsfFaz" style="width:100%;padding:7px 10px;border:1px solid #ccc;border-radius:6px;"><option value="">Todas</option>'+fazs.map(function(f){return "<option value=\""+f.id+"\""+(listFilters.fazenda===f.id?" selected":"")+">"+esc(f.nome)+"</option>";}).join("")+'</select></div>';
+    html += '<div><label style="font-size:11px;color:#666;font-weight:600;">CULTURA</label><select id="fsfCult" style="width:100%;padding:7px 10px;border:1px solid #ccc;border-radius:6px;"><option value="">Todas</option>'+culturas.map(function(c){return "<option value=\""+c+"\""+(listFilters.cultura===c?" selected":"")+">"+esc(c)+"</option>";}).join("")+'</select></div>';
+    html += '<div><label style="font-size:11px;color:#666;font-weight:600;">ANO AGRICOLA</label><select id="fsfAno" style="width:100%;padding:7px 10px;border:1px solid #ccc;border-radius:6px;"><option value="">Todos</option>'+anos.map(function(a){return "<option value=\""+a+"\""+(listFilters.ano===a?" selected":"")+">"+esc(a)+"</option>";}).join("")+'</select></div>';
+    html += '<div><label style="font-size:11px;color:#666;font-weight:600;">STATUS</label><select id="fsfStatus" style="width:100%;padding:7px 10px;border:1px solid #ccc;border-radius:6px;"><option value="">Todos</option><option value="confirmado"'+(listFilters.status==="confirmado"?" selected":"")+'>Confirmado</option><option value="rascunho"'+(listFilters.status==="rascunho"?" selected":"")+'>Rascunho</option></select></div>';
+    html += '<div><label style="font-size:11px;color:#666;font-weight:600;">BUSCAR</label><input id="fsfBusca" type="text" placeholder="safra, fazenda..." value="'+esc(listFilters.busca)+'" style="width:100%;padding:7px 10px;border:1px solid #ccc;border-radius:6px;"></div>';
+    html += '<div><button id="fsfClear" style="width:100%;padding:8px;background:#eee;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Limpar</button></div>';
+    html += '<div><button id="fsfExport" style="width:100%;padding:8px;background:#1e7e34;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">&#128190; Exportar CSV</button></div>';
+    html += '</div>';
+
+    html += '<div style="background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.05);">';
+    html += '<div style="padding:10px 16px;background:#f5f5f5;font-size:13px;color:#444;font-weight:600;">'+fechs.length+' fechamento(s) encontrado(s)</div>';
+    if(!fechs.length){
+      html += '<div style="padding:40px;text-align:center;color:#888;">Nenhum fechamento corresponde aos filtros.</div>';
+    } else {
+      html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead style="background:#fafafa;"><tr>';
+      ["Safra","Fazenda","Cultura","Data","Area","Producao","Produt.","Custo Total","Custo/sc","Receita","Resultado","Margem","Status",""].forEach(function(h){
+        html += '<th style="text-align:left;padding:10px 8px;font-size:12px;color:#555;border-bottom:2px solid #e0e0e0;white-space:nowrap;">'+h+'</th>';
+      });
+      html += '</tr></thead><tbody>';
+      fechs.forEach(function(f){
+        var nm = f.safras&&f.safras.nome||"-";
+        var fz = f.safras&&f.safras.fazendas&&f.safras.fazendas.nome||"-";
+        var cu = f.safras&&f.safras.cultura||"-";
+        var res = parseFloat(f.resultado_liquido||0);
+        var resColor = res>=0?"#2e7d32":"#c62828";
+        html += '<tr style="border-bottom:1px solid #eee;cursor:pointer;" data-id="'+f.id+'" class="fs-row">';
+        html += '<td style="padding:10px 8px;font-weight:600;">'+esc(nm)+'</td>';
+        html += '<td style="padding:10px 8px;color:#666;">'+esc(fz)+'</td>';
+        html += '<td style="padding:10px 8px;">'+esc(cu)+'</td>';
+        html += '<td style="padding:10px 8px;color:#666;white-space:nowrap;">'+fmtDate(f.data_fechamento)+'</td>';
+        html += '<td style="padding:10px 8px;white-space:nowrap;">'+fmtHa(f.area_total_ha)+'</td>';
+        html += '<td style="padding:10px 8px;white-space:nowrap;">'+fmtSc(f.producao_total_sc)+' sc</td>';
+        html += '<td style="padding:10px 8px;white-space:nowrap;">'+fmtSc(f.produtividade_sc_ha)+' sc/ha</td>';
+        html += '<td style="padding:10px 8px;white-space:nowrap;color:#c62828;">'+fmtBrlK(f.custo_total)+'</td>';
+        html += '<td style="padding:10px 8px;white-space:nowrap;">'+fmtBrl(f.custo_sc)+'</td>';
+        html += '<td style="padding:10px 8px;white-space:nowrap;color:#2e7d32;">'+fmtBrlK(f.receita_vendas)+'</td>';
+        html += '<td style="padding:10px 8px;white-space:nowrap;color:'+resColor+';font-weight:600;">'+fmtBrlK(res)+'</td>';
+        html += '<td style="padding:10px 8px;white-space:nowrap;font-weight:700;color:'+resColor+';">'+fmtPct(f.margem_pct)+'</td>';
+        html += '<td style="padding:10px 8px;">'+statusBadge(f.status)+'</td>';
+        html += '<td style="padding:10px 8px;"><button class="fs-detail" data-id="'+f.id+'" style="padding:5px 10px;background:#1565c0;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;">Detalhar</button></td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    html += '</div>';
+    c.innerHTML = html;
+
+    document.getElementById("fsfFaz").addEventListener("change", function(){ listFilters.fazenda = this.value; renderLista(); });
+    document.getElementById("fsfCult").addEventListener("change", function(){ listFilters.cultura = this.value; renderLista(); });
+    document.getElementById("fsfAno").addEventListener("change", function(){ listFilters.ano = this.value; renderLista(); });
+    document.getElementById("fsfStatus").addEventListener("change", function(){ listFilters.status = this.value; renderLista(); });
+    var bs = document.getElementById("fsfBusca"); var to;
+    bs.addEventListener("input", function(){ clearTimeout(to); to=setTimeout(function(){ listFilters.busca=bs.value; renderLista(); },250); });
+    document.getElementById("fsfClear").addEventListener("click", function(){ listFilters={fazenda:"",cultura:"",ano:"",status:"",busca:""}; renderLista(); });
+    document.getElementById("fsfExport").addEventListener("click", function(){ exportCSV(fechs); });
+    Array.from(document.querySelectorAll(".fs-row,.fs-detail")).forEach(function(el){
+      el.addEventListener("click", function(e){ e.stopPropagation(); openDetail(el.getAttribute("data-id")); });
+    });
+  }
+
+  function exportCSV(fechs){
+    var rows = [["Safra","Fazenda","Cultura","Ano","Data","Area_ha","Producao_sc","Produtividade_sc_ha","Custo_Insumos","Custo_MaoObra","Custo_Maquinas","Custo_Depreciacao","Custo_Outros","Custo_Total","Custo_sc","Custo_ha","Receita","Resultado","Margem_pct","Status"]];
+    fechs.forEach(function(f){
+      rows.push([
+        (f.safras&&f.safras.nome)||"",
+        (f.safras&&f.safras.fazendas&&f.safras.fazendas.nome)||"",
+        (f.safras&&f.safras.cultura)||"",
+        (f.safras&&f.safras.ano_agricola)||"",
+        f.data_fechamento||"",
+        f.area_total_ha||0, f.producao_total_sc||0, f.produtividade_sc_ha||0,
+        f.custo_insumos||0, f.custo_mao_obra||0, f.custo_maquinas||0, f.custo_depreciacao||0, f.custo_outros||0,
+        f.custo_total||0, f.custo_sc||0, f.custo_ha||0, f.receita_vendas||0, f.resultado_liquido||0, f.margem_pct||0,
+        f.status||""
+      ]);
+    });
+    var csv = rows.map(function(r){ return r.map(function(v){ var s=String(v==null?"":v); if(s.indexOf(",")>=0||s.indexOf(";")>=0||s.indexOf("\"")>=0) s='"'+s.replace(/"/g,'""')+'"'; return s; }).join(";"); }).join("\n");
+    var blob = new Blob(["\ufeff"+csv], {type:"text/csv;charset=utf-8"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a"); a.href=url; a.download="fechamentos_safra.csv"; a.click(); URL.revokeObjectURL(url);
+  }
+
+  function openDetail(id){
+    var f = DATA.fechs.find(function(x){return x.id===id;});
+    if(!f) return;
+    var bench = BENCH[f.safras&&f.safras.cultura] || null;
+    var totC = parseFloat(f.custo_total||0);
+    var pInsum = totC ? (parseFloat(f.custo_insumos||0)/totC)*100 : 0;
+    var pMao = totC ? (parseFloat(f.custo_mao_obra||0)/totC)*100 : 0;
+    var pMaq = totC ? (parseFloat(f.custo_maquinas||0)/totC)*100 : 0;
+    var pDep = totC ? (parseFloat(f.custo_depreciacao||0)/totC)*100 : 0;
+    var pOut = totC ? (parseFloat(f.custo_outros||0)/totC)*100 : 0;
+    var res = parseFloat(f.resultado_liquido||0);
+    var roi = totC ? (res/totC)*100 : 0;
+
+    var recs = [];
+    if(bench){
+      if(parseFloat(f.produtividade_sc_ha||0) < bench.prod*0.7) recs.push({i:"&#9888;", c:"#c62828", t:"Produtividade Critica", d:"A produtividade ("+fmtSc(f.produtividade_sc_ha)+" sc/ha) esta "+((1-parseFloat(f.produtividade_sc_ha||0)/bench.prod)*100).toFixed(0)+"% abaixo do benchmark ("+bench.prod+" sc/ha) para "+f.safras.cultura+"."});
+      else if(parseFloat(f.produtividade_sc_ha||0) >= bench.prod*1.1) recs.push({i:"&#127942;", c:"#1e7e34", t:"Produtividade Excelente", d:"A safra superou o benchmark em "+(((parseFloat(f.produtividade_sc_ha||0)/bench.prod)-1)*100).toFixed(0)+"%. Bom trabalho!"});
+      if(parseFloat(f.custo_sc||0) > bench.custoSc*1.15) recs.push({i:"&#128176;", c:"#ef6c00", t:"Custo por Saca Elevado", d:"Custo/sc ("+fmtBrl(f.custo_sc)+") esta "+(((parseFloat(f.custo_sc||0)/bench.custoSc)-1)*100).toFixed(0)+"% acima do esperado ("+fmtBrl(bench.custoSc)+"). Revisar insumos e operacoes."});
+      if(parseFloat(f.margem_pct||0) < bench.margem*0.7) recs.push({i:"&#128201;", c:"#c62828", t:"Margem Apertada", d:"Margem de "+fmtPct(f.margem_pct)+" abaixo do esperado ("+bench.margem+"%). Reavaliar precificacao e custos."});
+    }
+    if(pInsum > 60) recs.push({i:"&#128230;", c:"#ef6c00", t:"Custo de Insumos Alto", d:"Insumos representam "+pInsum.toFixed(1)+"% do custo total. Considerar negociacao com fornecedores ou alternativas."});
+    if(res < 0) recs.push({i:"&#128557;", c:"#c62828", t:"Resultado Negativo", d:"Esta safra apresentou prejuizo de "+fmtBrl(Math.abs(res))+". Revisar todo o plano operacional."});
+    if(recs.length===0) recs.push({i:"&#9989;", c:"#1e7e34", t:"Tudo dentro do esperado", d:"Os indicadores estao alinhados com os benchmarks da cultura."});
+
+    var talhoes = (f.fechamento_talhao||[]).slice().sort(function(a,b){ return parseFloat(b.produtividade_sc_ha||0) - parseFloat(a.produtividade_sc_ha||0); });
+
+    var html = '<div id="fsModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;overflow-y:auto;padding:20px;">';
+    html += '<div style="max-width:1100px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.3);">';
+    html += '<div style="padding:18px 24px;background:linear-gradient(135deg,#1e7e34,#2e7d32);color:#fff;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">';
+    html += '<div><div style="font-size:11px;opacity:.85;letter-spacing:.5px;">RELATORIO DE FECHAMENTO</div><h2 style="margin:4px 0;font-size:22px;">'+esc(f.safras&&f.safras.nome||"-")+'</h2><div style="font-size:13px;opacity:.95;">'+esc(f.safras&&f.safras.fazendas&&f.safras.fazendas.nome||"-")+' &middot; '+esc(f.safras&&f.safras.cultura||"-")+' &middot; '+fmtDate(f.data_fechamento)+' &middot; '+statusBadge(f.status)+'</div></div>';
+    html += '<div style="display:flex;gap:8px;"><button id="fsPrint" style="padding:8px 14px;background:#fff;color:#1e7e34;border:none;border-radius:6px;font-weight:700;cursor:pointer;">&#128424; Imprimir</button><button id="fsClose" style="padding:8px 14px;background:rgba(255,255,255,.2);color:#fff;border:1px solid #fff;border-radius:6px;font-weight:700;cursor:pointer;">Fechar &times;</button></div>';
+    html += '</div>';
+
+    html += '<div id="fsPrintArea" style="padding:24px;">';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px;">';
+    var kpis2 = [
+      {l:"Area",v:fmtHa(f.area_total_ha),c:"#37474f"},
+      {l:"Producao",v:fmtSc(f.producao_total_sc)+" sc",c:"#1565c0"},
+      {l:"Produtividade",v:fmtSc(f.produtividade_sc_ha)+" sc/ha",c:"#1565c0",b:bench?trend(f.produtividade_sc_ha,bench.prod):""},
+      {l:"Custo Total",v:fmtBrlK(f.custo_total),c:"#c62828"},
+      {l:"Custo/sc",v:fmtBrl(f.custo_sc),c:"#c62828",b:bench?trend(f.custo_sc,bench.custoSc,true):""},
+      {l:"Custo/ha",v:fmtBrl(f.custo_ha),c:"#c62828"},
+      {l:"Receita",v:fmtBrlK(f.receita_vendas),c:"#2e7d32"},
+      {l:"Resultado",v:fmtBrlK(res),c:res>=0?"#2e7d32":"#c62828"},
+      {l:"Margem",v:fmtPct(f.margem_pct),c:"#7b1fa2",b:bench?trend(f.margem_pct,bench.margem):""},
+      {l:"ROI",v:fmtPct(roi),c:"#7b1fa2"}
+    ];
+    kpis2.forEach(function(k){
+      html += '<div style="background:#f8f9fa;padding:10px 12px;border-radius:8px;border-left:3px solid '+k.c+';"><div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:.5px;">'+k.l+'</div><div style="font-size:16px;font-weight:700;color:'+k.c+';">'+k.v+(k.b||"")+'</div></div>';
+    });
+    html += '</div>';
+
+    html += '<div style="background:#fafafa;padding:16px;border-radius:10px;margin-bottom:16px;">';
+    html += '<h3 style="margin:0 0 12px;color:#333;font-size:16px;">&#128202; Composicao dos Custos</h3>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">';
+    html += '<div><canvas id="fsModalChart" height="200"></canvas></div>';
+    html += '<div>';
+    [
+      {l:"Insumos",v:f.custo_insumos,p:pInsum,c:"#1e7e34"},
+      {l:"Mao de Obra",v:f.custo_mao_obra,p:pMao,c:"#1565c0"},
+      {l:"Maquinas",v:f.custo_maquinas,p:pMaq,c:"#ef6c00"},
+      {l:"Depreciacao",v:f.custo_depreciacao,p:pDep,c:"#6a1b9a"},
+      {l:"Outros",v:f.custo_outros,p:pOut,c:"#546e7a"}
+    ].forEach(function(r){
+      html += '<div style="margin:8px 0;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;"><span style="color:'+r.c+';font-weight:600;">'+r.l+'</span><span style="font-weight:700;">'+fmtBrl(r.v)+' &middot; '+r.p.toFixed(1)+'%</span></div><div style="background:#e0e0e0;border-radius:4px;height:8px;overflow:hidden;"><div style="background:'+r.c+';height:100%;width:'+Math.min(100,r.p)+'%;"></div></div></div>';
+    });
+    html += '</div></div></div>';
+
+    if(talhoes.length){
+      html += '<div style="background:#fff;border:1px solid #e8e8e8;border-radius:10px;margin-bottom:16px;overflow:hidden;">';
+      html += '<div style="padding:12px 16px;background:#f5f5f5;font-weight:700;color:#333;">&#127947; Resultado por Talhao ('+talhoes.length+')</div>';
+      html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#fafafa;">';
+      ["#","Talhao","Area","Producao","Produt.","Custo Total","Custo/sc","Receita","Resultado","Status"].forEach(function(h){ html += '<th style="text-align:left;padding:9px 8px;font-size:12px;color:#555;border-bottom:1px solid #e0e0e0;">'+h+'</th>'; });
+      html += '</tr></thead><tbody>';
+      talhoes.forEach(function(t,i){
+        var resT = parseFloat(t.resultado_liquido||0);
+        html += '<tr style="border-bottom:1px solid #f0f0f0;">';
+        html += '<td style="padding:8px;color:#888;">'+medal(i)+'</td>';
+        html += '<td style="padding:8px;font-weight:600;">'+esc(t.talhoes&&t.talhoes.nome||"-")+'</td>';
+        html += '<td style="padding:8px;white-space:nowrap;">'+fmtHa(t.area_ha)+'</td>';
+        html += '<td style="padding:8px;white-space:nowrap;">'+fmtSc(t.producao_sc)+' sc</td>';
+        html += '<td style="padding:8px;white-space:nowrap;">'+fmtSc(t.produtividade_sc_ha)+'</td>';
+        html += '<td style="padding:8px;white-space:nowrap;color:#c62828;">'+fmtBrlK(t.custo_total)+'</td>';
+        html += '<td style="padding:8px;white-space:nowrap;">'+fmtBrl(t.custo_sc)+'</td>';
+        html += '<td style="padding:8px;white-space:nowrap;color:#2e7d32;">'+fmtBrlK(t.receita_proporcional)+'</td>';
+        html += '<td style="padding:8px;white-space:nowrap;font-weight:700;color:'+(resT>=0?"#2e7d32":"#c62828")+';">'+fmtBrlK(resT)+'</td>';
+        html += '<td style="padding:8px;">'+statusBadge(t.status_talhao)+'</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div></div>';
+    }
+
+    var vendasSafra = (DATA.vendas||[]).filter(function(v){ return v.safra_id===f.safra_id; });
+    if(vendasSafra.length){
+      var totQt=0, totVal=0;
+      vendasSafra.forEach(function(v){ var q=parseFloat(v.quantidade_sc||0); var p=parseFloat(v.preco_saca||0); totQt+=q; totVal+=q*p; });
+      var precoMedio = totQt? totVal/totQt : 0;
+      html += '<div style="background:#fff;border:1px solid #e8e8e8;border-radius:10px;margin-bottom:16px;padding:16px;">';
+      html += '<h3 style="margin:0 0 10px;font-size:16px;color:#333;">&#128176; Vendas Vinculadas a Safra</h3>';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;"><div><div style="font-size:11px;color:#666;">CONTRATOS</div><div style="font-size:18px;font-weight:700;color:#1565c0;">'+vendasSafra.length+'</div></div>';
+      html += '<div><div style="font-size:11px;color:#666;">QUANT. VENDIDA</div><div style="font-size:18px;font-weight:700;color:#1565c0;">'+fmtSc(totQt)+' sc</div></div>';
+      html += '<div><div style="font-size:11px;color:#666;">PRECO MEDIO</div><div style="font-size:18px;font-weight:700;color:#1565c0;">'+fmtBrl(precoMedio)+'</div></div>';
+      html += '<div><div style="font-size:11px;color:#666;">RECEITA APURADA</div><div style="font-size:18px;font-weight:700;color:#2e7d32;">'+fmtBrlK(totVal)+'</div></div></div>';
+      html += '</div>';
+    }
+
+    html += '<div style="background:linear-gradient(135deg,#fafafa,#f0f4f8);border:1px solid #e0e0e0;border-radius:10px;padding:16px;margin-bottom:16px;">';
+    html += '<h3 style="margin:0 0 12px;font-size:16px;color:#333;">&#129302; Analise Inteligente</h3>';
+    recs.forEach(function(r){
+      html += '<div style="background:#fff;padding:11px 14px;border-radius:8px;margin-bottom:8px;border-left:4px solid '+r.c+';"><div style="font-weight:700;color:'+r.c+';font-size:14px;">'+r.i+' '+r.t+'</div><div style="font-size:13px;color:#555;margin-top:3px;">'+r.d+'</div></div>';
+    });
+    html += '</div>';
+
+    if(f.observacoes){
+      html += '<div style="background:#fffde7;border-left:4px solid #fbc02d;padding:12px 14px;border-radius:6px;margin-bottom:16px;"><div style="font-size:11px;color:#f57f17;font-weight:700;letter-spacing:.5px;">OBSERVACOES</div><div style="font-size:13px;color:#444;margin-top:4px;white-space:pre-wrap;">'+esc(f.observacoes)+'</div></div>';
+    }
+
+    html += '<div style="text-align:center;color:#aaa;font-size:11px;margin-top:14px;">Gerado por JA Agro Intelligence em '+new Date().toLocaleString("pt-BR")+'</div>';
+    html += '</div></div></div>';
+
+    var wrap = document.createElement("div"); wrap.innerHTML = html;
+    document.body.appendChild(wrap.firstChild);
+
+    document.getElementById("fsClose").addEventListener("click", function(){ var m=document.getElementById("fsModal"); if(m) m.remove(); });
+    document.getElementById("fsModal").addEventListener("click", function(e){ if(e.target.id==="fsModal") e.target.remove(); });
+    document.getElementById("fsPrint").addEventListener("click", function(){
+      var w = window.open("","_blank");
+      var content = document.getElementById("fsPrintArea").innerHTML;
+      w.document.write('<html><head><title>Relatorio - '+esc(f.safras&&f.safras.nome||"")+'</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#333;}h1,h2,h3{color:#1e7e34;}table{width:100%;border-collapse:collapse;}th,td{padding:6px;border-bottom:1px solid #ddd;font-size:12px;text-align:left;}canvas{display:none;}</style></head><body><h1>Relatorio de Fechamento - '+esc(f.safras&&f.safras.nome||"")+'</h1>'+content+'</body></html>');
+      w.document.close(); setTimeout(function(){ w.print(); }, 300);
+    });
+
+    setTimeout(function(){
+      try{
+        var Chart = window.Chart;
+        var ctx = document.getElementById("fsModalChart");
+        if(ctx && Chart) new Chart(ctx,{type:"doughnut",data:{labels:["Insumos","Mao Obra","Maquinas","Depreciacao","Outros"],datasets:[{data:[f.custo_insumos||0,f.custo_mao_obra||0,f.custo_maquinas||0,f.custo_depreciacao||0,f.custo_outros||0],backgroundColor:["#1e7e34","#1565c0","#ef6c00","#6a1b9a","#546e7a"]}]},options:{plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:10}}}},responsive:true,maintainAspectRatio:false}});
+      }catch(e){}
+    }, 80);
+  }
+
+  var compMode = "margem";
+  function renderComp(){
+    var c = document.getElementById("fsContent");
+    if(!DATA){ c.innerHTML = "Carregando..."; return; }
+    var fechs = DATA.fechs.filter(function(f){return f.status==="confirmado"||f.status==="rascunho";});
+    if(!fechs.length){ c.innerHTML = '<div style="background:#fff;padding:40px;border-radius:10px;text-align:center;color:#888;">Sem dados para comparar.</div>'; return; }
+
+    var fields = {
+      margem: {label:"Margem (%)", getter:function(f){return parseFloat(f.margem_pct||0);}, inverso:false, fmt:fmtPct},
+      custoSc:{label:"Custo / Saca", getter:function(f){return parseFloat(f.custo_sc||0);}, inverso:true,  fmt:fmtBrl},
+      prod:   {label:"Produtividade", getter:function(f){return parseFloat(f.produtividade_sc_ha||0);}, inverso:false, fmt:function(v){return fmtSc(v)+" sc/ha";}},
+      roi:    {label:"ROI (%)", getter:function(f){var c=parseFloat(f.custo_total||0); return c?(parseFloat(f.resultado_liquido||0)/c)*100:0;}, inverso:false, fmt:fmtPct}
+    };
+    var modes = [["margem","Margem %"],["custoSc","Custo/Saca"],["prod","Produtividade"],["roi","ROI"]];
+
+    var sortField = fields[compMode];
+    var sorted = fechs.slice().sort(function(a,b){
+      var va = sortField.getter(a), vb = sortField.getter(b);
+      return sortField.inverso ? va-vb : vb-va;
+    });
+
+    var byCult = {};
+    fechs.forEach(function(f){
+      var k = f.safras&&f.safras.cultura||"Outros";
+      if(!byCult[k]) byCult[k] = {n:0, custoSc:0, prod:0, margem:0, roi:0, area:0, receita:0, custo:0};
+      byCult[k].n++;
+      byCult[k].custoSc += parseFloat(f.custo_sc||0);
+      byCult[k].prod += parseFloat(f.produtividade_sc_ha||0);
+      byCult[k].margem += parseFloat(f.margem_pct||0);
+      var rc = parseFloat(f.custo_total||0); byCult[k].roi += rc?(parseFloat(f.resultado_liquido||0)/rc)*100:0;
+      byCult[k].area += parseFloat(f.area_total_ha||0);
+      byCult[k].receita += parseFloat(f.receita_vendas||0);
+      byCult[k].custo += parseFloat(f.custo_total||0);
+    });
+
+    var html = '';
+    html += '<div style="background:#fff;padding:14px;border-radius:10px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,.05);"><div style="font-size:12px;color:#666;font-weight:600;margin-bottom:8px;">RANKING POR:</div>';
+    modes.forEach(function(m){
+      var act = compMode===m[0];
+      html += '<button data-mode="'+m[0]+'" class="fsCompBtn" style="margin-right:6px;margin-bottom:4px;padding:8px 14px;background:'+(act?"#1e7e34":"#eee")+';color:'+(act?"#fff":"#444")+';border:none;border-radius:6px;font-weight:600;cursor:pointer;">'+m[1]+'</button>';
+    });
+    html += '</div>';
+
+    html += '<div style="background:#fff;border-radius:10px;padding:14px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,.05);">';
+    html += '<h3 style="margin:0 0 12px;font-size:16px;color:#333;">&#127942; Ranking - '+sortField.label+'</h3>';
+    html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#fafafa;">';
+    ["#","Safra","Fazenda","Cultura",sortField.label,"vs. Benchmark","Margem","Custo/sc","Produt.","Detalhe"].forEach(function(h){ html += '<th style="text-align:left;padding:9px 8px;color:#555;font-size:12px;border-bottom:1px solid #e0e0e0;">'+h+'</th>'; });
+    html += '</tr></thead><tbody>';
+    sorted.forEach(function(f,i){
+      var val = sortField.getter(f);
+      var bench = BENCH[f.safras&&f.safras.cultura];
+      var bRef = bench ? (compMode==="margem"?bench.margem:compMode==="custoSc"?bench.custoSc:compMode==="prod"?bench.prod:bench.margem) : null;
+      var bDisp = bRef ? trend(val, bRef, sortField.inverso) : '<span style="color:#aaa;">-</span>';
+      html += '<tr style="border-bottom:1px solid #f0f0f0;">';
+      html += '<td style="padding:9px 8px;font-size:16px;">'+medal(i)+'</td>';
+      html += '<td style="padding:9px 8px;font-weight:600;">'+esc(f.safras&&f.safras.nome||"-")+'</td>';
+      html += '<td style="padding:9px 8px;color:#666;">'+esc(f.safras&&f.safras.fazendas&&f.safras.fazendas.nome||"-")+'</td>';
+      html += '<td style="padding:9px 8px;">'+esc(f.safras&&f.safras.cultura||"-")+'</td>';
+      html += '<td style="padding:9px 8px;font-weight:700;color:#1e7e34;">'+sortField.fmt(val)+'</td>';
+      html += '<td style="padding:9px 8px;">'+bDisp+'</td>';
+      html += '<td style="padding:9px 8px;">'+fmtPct(f.margem_pct)+'</td>';
+      html += '<td style="padding:9px 8px;">'+fmtBrl(f.custo_sc)+'</td>';
+      html += '<td style="padding:9px 8px;">'+fmtSc(f.produtividade_sc_ha)+' sc/ha</td>';
+      html += '<td style="padding:9px 8px;"><button class="fs-detail" data-id="'+f.id+'" style="padding:4px 10px;background:#1565c0;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;">Ver</button></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div></div>';
+
+    html += '<div style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,.05);">';
+    html += '<h3 style="margin:0 0 12px;font-size:16px;color:#333;">&#127806; Performance Media por Cultura</h3>';
+    html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#fafafa;">';
+    ["Cultura","Safras","Area Total","Receita","Custo","Margem Media","Custo/sc Medio","Produt. Media","vs. Benchmark"].forEach(function(h){ html += '<th style="text-align:left;padding:9px 8px;color:#555;font-size:12px;border-bottom:1px solid #e0e0e0;">'+h+'</th>'; });
+    html += '</tr></thead><tbody>';
+    Object.keys(byCult).sort().forEach(function(k){
+      var d = byCult[k]; var b = BENCH[k];
+      var mProd = d.prod/d.n, mMar = d.margem/d.n, mCs = d.custoSc/d.n;
+      html += '<tr style="border-bottom:1px solid #f0f0f0;">';
+      html += '<td style="padding:9px 8px;font-weight:700;color:#1e7e34;">'+esc(k)+'</td>';
+      html += '<td style="padding:9px 8px;">'+d.n+'</td>';
+      html += '<td style="padding:9px 8px;">'+fmtHa(d.area)+'</td>';
+      html += '<td style="padding:9px 8px;color:#2e7d32;">'+fmtBrlK(d.receita)+'</td>';
+      html += '<td style="padding:9px 8px;color:#c62828;">'+fmtBrlK(d.custo)+'</td>';
+      html += '<td style="padding:9px 8px;font-weight:600;">'+fmtPct(mMar)+(b?trend(mMar,b.margem):"")+'</td>';
+      html += '<td style="padding:9px 8px;">'+fmtBrl(mCs)+(b?trend(mCs,b.custoSc,true):"")+'</td>';
+      html += '<td style="padding:9px 8px;">'+fmtSc(mProd)+' sc/ha'+(b?trend(mProd,b.prod):"")+'</td>';
+      html += '<td style="padding:9px 8px;font-size:11px;color:#666;">'+(b?"Ref: "+b.prod+" sc/ha &middot; "+fmtBrl(b.custoSc)+"/sc":"-")+'</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div></div>';
+
+    c.innerHTML = html;
+    Array.from(document.querySelectorAll(".fsCompBtn")).forEach(function(b){ b.addEventListener("click", function(){ compMode=b.getAttribute("data-mode"); renderComp(); }); });
+    Array.from(document.querySelectorAll(".fs-detail")).forEach(function(el){ el.addEventListener("click", function(e){ e.stopPropagation(); openDetail(el.getAttribute("data-id")); }); });
+  }
+
+  function renderNovo(){
+    var c = document.getElementById("fsContent");
+    c.innerHTML = '<div style="background:#fff;padding:30px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);max-width:780px;margin:0 auto;text-align:center;">'
+      +'<div style="font-size:56px;">&#10133;</div>'
+      +'<h2 style="margin:12px 0 4px;color:#1e7e34;">Iniciar Novo Fechamento de Safra</h2>'
+      +'<p style="color:#666;font-size:14px;margin:6px 0 22px;">Selecione uma safra, escolha os talhoes, confirme os custos apurados e gere o relatorio consolidado.</p>'
+      +'<button id="fsStartLegacy" style="padding:14px 32px;background:#1e7e34;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 4px 12px rgba(30,126,52,.3);">Iniciar Fechamento &rarr;</button>'
+      +'<p style="margin-top:18px;font-size:12px;color:#888;">O fluxo de criacao guiara voce em 4 etapas: Safra &rarr; Talhoes &rarr; Custos &rarr; Confirmacao</p>'
+      +'</div>';
+    document.getElementById("fsStartLegacy").addEventListener("click", function(){
+      if(typeof window._legacyFechamentoCreate === "function"){
+        window._legacyFechamentoCreate();
+      } else {
+        alert("Fluxo de criacao indisponivel no momento. Atualize a pagina e tente novamente.");
+      }
+    });
+  }
+
+  function renderContent(){
+    if(activeTab==="visao") renderVisao();
+    else if(activeTab==="lista") renderLista();
+    else if(activeTab==="comp") renderComp();
+    else if(activeTab==="novo") renderNovo();
+  }
+  window._fsRenderContent = renderContent;
+
+  renderTabs();
+  document.getElementById("fsContent").innerHTML = '<div style="padding:40px;text-align:center;color:#888;">Carregando fechamentos...</div>';
+  try {
+    DATA = await loadData();
+    if(DATA.err){ document.getElementById("fsContent").innerHTML = '<div style="background:#ffebee;padding:20px;border-radius:8px;color:#c62828;">Erro ao carregar: '+esc(DATA.err.message||"")+'</div>'; return; }
+    renderContent();
+  } catch(e){
+    document.getElementById("fsContent").innerHTML = '<div style="background:#ffebee;padding:20px;border-radius:8px;color:#c62828;">Erro inesperado: '+esc(e.message||"")+'</div>';
+    console.error(e);
+  }
+};
+
+
+// ===== LEGACY CREATE FLOW (preserved from previous version) =====
+window._legacyFechamentoCreate = async function() {
   var c = document.getElementById("mainContent");
   if (!c) return;
   c.innerHTML = "<div style=\"padding:16px\"><p>Carregando dados...</p></div>";
@@ -349,7 +875,7 @@ window.module_fechamento_safra = async function() {
     var html = "";
     html += "<div style=\"max-width:1200px;margin:0 auto;padding:8px 0\">"
     html += "<div style=\"display:flex;align-items:center;gap:12px;margin-bottom:20px\">"
-    html += "<button onclick=\"window.module_fechamento_safra();\" style=\"background:none;border:none;cursor:pointer;font-size:16px;color:#666\">&larr;</button>"
+    html += "<button onclick=\"window._legacyFechamentoCreate();\" style=\"background:none;border:none;cursor:pointer;font-size:16px;color:#666\">&larr;</button>"
     html += "<div><h2 style=\"margin:0;font-size:22px;color:#1a2e1a\">&#128200; Fechamento: "+(safra.nome||"")+"</h2>"
     html += "<p style=\"margin:2px 0 0;color:#666;font-size:13px\">"+(safra.cultura||"")+" "+safra.ano_agricola+" &bull; Gerado em "+new Date().toLocaleDateString("pt-BR")+"</p></div>"
     html += "</div>"
@@ -501,7 +1027,7 @@ window.module_fechamento_safra = async function() {
     html += "<div style=\"display:flex;gap:10px;margin-bottom:20px\">"
     html += "<button onclick=\"window._fsConfirmar('"+fechId+"');\" style=\"background:#2d7d32;color:#fff;border:none;border-radius:8px;padding:12px 28px;cursor:pointer;font-size:14px;font-weight:600\">&#10003; Confirmar Fechamento</button>"
     html += "<button onclick=\"window.print();\" style=\"background:#1565c0;color:#fff;border:none;border-radius:8px;padding:12px 28px;cursor:pointer;font-size:14px;font-weight:600\">&#128424; Imprimir Relatorio</button>"
-    html += "<button onclick=\"window.module_fechamento_safra();\" style=\"background:#eee;color:#333;border:none;border-radius:8px;padding:12px 24px;cursor:pointer;font-size:14px\">Voltar</button>"
+    html += "<button onclick=\"window._legacyFechamentoCreate();\" style=\"background:#eee;color:#333;border:none;border-radius:8px;padding:12px 24px;cursor:pointer;font-size:14px\">Voltar</button>"
     html += "</div>"
 
     html += "</div>"
@@ -617,7 +1143,7 @@ window.module_fechamento_safra = async function() {
     var res = await sb.from("fechamento_safra").update({status:"confirmado"}).eq("id",fechId);
     if (res.error) { alert("Erro: "+res.error.message); return; }
     alert("Fechamento confirmado com sucesso!");
-    window.module_fechamento_safra();
+    window._legacyFechamentoCreate();
   };
 
   // View existing fechamento detail
@@ -646,8 +1172,8 @@ window.module_fechamento_safra = async function() {
     var { error: err2 } = await sb.from("fechamento_safra").delete().eq("id", id);
     if(err2) { alert("Erro ao excluir fechamento: "+err2.message); return; }
     toast("Rascunho exclu\u00EDdo com sucesso","ok");
-    await window.module_fechamento_safra();
+    await window._legacyFechamentoCreate();
   };
 
 }; // end module_fechamento_safra
-window.module_fechamento_safra();
+window._legacyFechamentoCreate();
