@@ -49,7 +49,7 @@ window.module_fechamento_safra = async function(){
   async function loadData(){
     var fazFilter = sessionStorage.getItem("homeFazSel");
     var q = sb.from("fechamento_safra").select("*,safras(id,nome,cultura,ano_agricola,fazenda_id,data_plantio,data_colheita,fazendas(nome)),fechamento_talhao(id,talhao_id,area_ha,producao_sc,produtividade_sc_ha,custo_total,custo_sc,resultado_liquido,status_talhao,talhoes(nome))").order("data_fechamento",{ascending:false});
-    if(fazFilter && fazFilter!=="all"){ q = q.eq("fazenda_id", fazFilter); }
+    if(fazFilter && fazFilter!=="all" && fazFilter!=="todas" && fazFilter.length>=10){ q = q.eq("fazenda_id", fazFilter); }
     var r = await q;
     var fechs = r.data || [];
     var vendasR = await sb.from("vendas_graos").select("safra_id,quantidade_sc,preco_saca,cultura,status").in("status",["confirmado","entregue","faturado"]).limit(2000);
