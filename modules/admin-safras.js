@@ -1,5 +1,5 @@
 // ============================================================
-// JA AGRO - Admin Module: Safras (v2.0 - reescrito limpo)
+// JA AGRO - Admin Module: Safras (v3.0 - com vinculo de talhoes)
 // ============================================================
 window.module_safras = async function(){
   "use strict";
@@ -8,7 +8,7 @@ window.module_safras = async function(){
   var fmtN = function(v,dec){ if(v==null||isNaN(v)) return "--"; return Number(v).toLocaleString("pt-BR",{minimumFractionDigits:dec||0,maximumFractionDigits:dec||0}); };
   var fmtBR = function(v){ if(v==null||isNaN(v)) return "R$ --"; return "R$ "+Number(v).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); };
   
-  var _safras = [], _fazendas = [], _talhoesPorSafra = {};
+  var _safras = [], _fazendas = [], _talhoes = [], _talhoesPorSafra = {};
   var _search = "", _filtroStatus = "", _filtroFazenda = "";
   
   var statusInfo = {
@@ -19,16 +19,17 @@ window.module_safras = async function(){
   
   async function carregar(){
     try{
-      var pFaz = sb.from("fazendas").select("id,nome").eq("ativo",true).order("nome");
-      var pSaf = sb.from("safras").select("*, fazendas(nome)").order("data_plantio",{ascending:false, nullsFirst:false});
-      var pTal = sb.from("talhoes").select("id,safra_id,area_ha");
-      var resFaz = await pFaz, resSaf = await pSaf, resTal = await pTal;
+      var resFaz = await sb.from("fazendas").select("id,nome").eq("ativo",true).order("nome");
+      var resSaf = await sb.from("safras").select("*, fazendas(nome)").order("data_plantio",{ascending:false, nullsFirst:false});
+      var resTal = await sb.from("talhoes").select("id,nome,fazenda_id,safra_id,area_ha,ativo").eq("ativo",true).order("nome");
       if(resFaz.error) throw resFaz.error;
       if(resSaf.error) throw resSaf.error;
+      if(resTal.error) throw resTal.error;
       _fazendas = resFaz.data || [];
       _safras   = resSaf.data || [];
+      _talhoes  = resTal.data || [];
       _talhoesPorSafra = {};
-      (resTal.data||[]).forEach(function(t){
+      _talhoes.forEach(function(t){
         if(!t.safra_id) return;
         if(!_talhoesPorSafra[t.safra_id]) _talhoesPorSafra[t.safra_id] = { count:0, area:0 };
         _talhoesPorSafra[t.safra_id].count++;
@@ -55,12 +56,13 @@ window.module_safras = async function(){
   
   function calcKpis(){
     var lst = _safras;
-    var total = lst.length;
-    var abertas = lst.filter(function(s){return s.status==="aberta";}).length;
-    var plan = lst.filter(function(s){return s.status==="planejamento";}).length;
-    var encerradas = lst.filter(function(s){return s.status==="encerrada";}).length;
-    var area = lst.reduce(function(a,s){return a + Number(s.area_ha||0);},0);
-    return { total: total, abertas: abertas, plan: plan, encerradas: encerradas, area: area };
+    return {
+      total: lst.length,
+      abertas: lst.filter(function(s){return s.status==="aberta";}).length,
+      plan: lst.filter(function(s){return s.status==="planejamento";}).length,
+      encerradas: lst.filter(function(s){return s.status==="encerrada";}).length,
+      area: lst.reduce(function(a,s){return a + Number(s.area_ha||0);},0)
+    };
   }
   
   function render(){
@@ -71,7 +73,6 @@ window.module_safras = async function(){
       }).join("");
     var html = ""+
       '<div style="padding:18px 22px;max-width:1400px;margin:0 auto">'+
-      
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:18px">'+
           kpiCard("Total de Safras", k.total, "#0f766e", "#ccfbf1", "📅")+
           kpiCard("Em Andamento",    k.abertas, "#16a34a", "#dcfce7", "🌱")+
@@ -79,12 +80,10 @@ window.module_safras = async function(){
           kpiCard("Encerradas",      k.encerradas, "#6b7280", "#e5e7eb", "✅")+
           kpiCard("Area Total",      fmtN(k.area,0)+" ha", "#1d4ed8", "#dbeafe", "📐")+
         '</div>'+
-        
         '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;background:#fff;padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px">'+
           '<input id="safSearch" type="text" placeholder="🔍 Buscar safra, cultura ou fazenda..." value="'+esc(_search)+'" '+
             'oninput="window._safSearch(this.value)" '+
             'style="flex:1;min-width:220px;padding:9px 12px;border:1px solid #e5e7eb;border-radius:9px;font-size:14px">'+
-          
           '<select onchange="window._safFiltroStatus(this.value)" '+
             'style="padding:9px 12px;border:1px solid #e5e7eb;border-radius:9px;font-size:14px;background:#fff">'+
             '<option value="">Todos os status</option>'+
@@ -92,20 +91,16 @@ window.module_safras = async function(){
             '<option value="planejamento"'+(_filtroStatus==="planejamento"?' selected':'')+'>Planejamento</option>'+
             '<option value="encerrada"'+(_filtroStatus==="encerrada"?' selected':'')+'>Encerrada</option>'+
           '</select>'+
-          
           '<select onchange="window._safFiltroFazenda(this.value)" '+
             'style="padding:9px 12px;border:1px solid #e5e7eb;border-radius:9px;font-size:14px;background:#fff;max-width:240px">'+
             fazendasOpt+
           '</select>'+
-          
           '<button onclick="window._safNova()" '+
             'style="background:#16a34a;color:#fff;border:none;padding:9px 16px;border-radius:9px;font-weight:600;cursor:pointer;font-size:14px">'+
             '+ Nova Safra</button>'+
         '</div>'+
-        
         '<div id="safList"></div>'+
       '</div>';
-    
     document.getElementById("mainContent").innerHTML = html;
     renderLista();
   }
@@ -124,7 +119,6 @@ window.module_safras = async function(){
     var filtradas = filtrarSafras();
     var holder = document.getElementById("safList");
     if(!holder) return;
-    
     if(filtradas.length === 0){
       holder.innerHTML = '<div style="background:#fff;border:1px dashed #e5e7eb;border-radius:12px;padding:60px;text-align:center;color:#9ca3af">'+
         '<div style="font-size:48px;margin-bottom:12px">🌾</div>'+
@@ -133,17 +127,13 @@ window.module_safras = async function(){
       '</div>';
       return;
     }
-    
     var rows = filtradas.map(function(s){
       var st = statusInfo[s.status] || { label: s.status||"--", color:"#6b7280", bg:"#e5e7eb" };
       var fazNome = (s.fazendas && s.fazendas.nome) || "(Sem fazenda)";
       var tal = _talhoesPorSafra[s.id] || { count:0, area:0 };
       var prod = s.producao_sc ? fmtN(s.producao_sc,0)+" sc" : "--";
       var roi = (s.custo_total>0 && s.receita_total>0) ? (((s.receita_total - s.custo_total)/s.custo_total)*100).toFixed(1)+"%" : "--";
-      
-      return '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;margin-bottom:10px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;transition:box-shadow .15s" '+
-        'onmouseover="this.style.boxShadow=\'0 4px 12px rgba(0,0,0,.06)\'" onmouseout="this.style.boxShadow=\'none\'">'+
-        
+      return '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;margin-bottom:10px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center">'+
         '<div>'+
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">'+
             '<span style="font-size:16px;font-weight:700;color:#111">'+esc(s.nome)+'</span>'+
@@ -151,7 +141,6 @@ window.module_safras = async function(){
             (s.cultura ? '<span style="background:#f0fdf4;color:#15803d;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600">'+esc(s.cultura)+'</span>' : '')+
             (s.ano_agricola ? '<span style="color:#6b7280;font-size:12px;font-weight:600">'+esc(s.ano_agricola)+'</span>' : '')+
           '</div>'+
-          
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;font-size:12px;color:#374151">'+
             '<div><span style="color:#9ca3af">🏡 Fazenda:</span><br><b>'+esc(fazNome)+'</b></div>'+
             '<div><span style="color:#9ca3af">📐 Area:</span><br><b>'+fmtN(s.area_ha,0)+' ha</b></div>'+
@@ -163,14 +152,12 @@ window.module_safras = async function(){
             '<div><span style="color:#9ca3af">📈 ROI:</span><br><b style="color:'+(roi.indexOf("-")===0?"#dc2626":"#16a34a")+'">'+roi+'</b></div>'+
           '</div>'+
         '</div>'+
-        
         '<div style="display:flex;flex-direction:column;gap:6px">'+
           '<button onclick="window._safEditar(\''+s.id+'\')" style="background:#3b82f6;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">✏️ Editar</button>'+
           '<button onclick="window._safExcluir(\''+s.id+'\',\''+esc(s.nome).replace(/'/g,"&#39;")+'\')" style="background:#fee2e2;color:#dc2626;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">🗑 Excluir</button>'+
         '</div>'+
       '</div>';
     }).join("");
-    
     holder.innerHTML = rows;
   }
   
@@ -181,8 +168,9 @@ window.module_safras = async function(){
   window._safEditar  = function(id){ var s = _safras.find(function(x){return x.id===id;}); if(s) abrirForm(s); };
   
   window._safExcluir = async function(id, nome){
-    if(!confirm("Excluir a safra \""+nome+"\"?\n\nIsso NAO removera talhoes ou lancamentos vinculados, apenas a safra em si.\nDeseja continuar?")) return;
+    if(!confirm("Excluir a safra \""+nome+"\"?\n\nIsso desvinculara os talhoes mas NAO afetara lancamentos.\nDeseja continuar?")) return;
     try{
+      await sb.from("talhoes").update({safra_id: null}).eq("safra_id", id);
       var r = await sb.from("safras").delete().eq("id", id);
       if(r.error) throw r.error;
       toast("Safra excluida com sucesso","ok");
@@ -191,6 +179,51 @@ window.module_safras = async function(){
       toast("Erro ao excluir: "+(e.message||e),"bad");
     }
   };
+  
+  window._safOnChangeFazenda = function(safraIdEditando){
+    var fazId = document.getElementById("saf_fazenda").value;
+    renderTalhoesPicker(fazId, safraIdEditando);
+  };
+  
+  window._safRecalcArea = function(){
+    var checks = document.querySelectorAll('input[name="saf_talhao"]:checked');
+    var soma = 0;
+    checks.forEach(function(c){ soma += Number(c.dataset.area||0); });
+    var areaInput = document.getElementById("saf_area");
+    if(areaInput && checks.length > 0){
+      areaInput.value = soma.toFixed(2);
+      areaInput.style.background = "#f0fdf4";
+      var info = document.getElementById("saf_area_info");
+      if(info) info.textContent = "Calculado: " + checks.length + " talhão(s) selecionado(s)";
+    }
+  };
+  
+  function renderTalhoesPicker(fazId, safraIdEditando){
+    var holder = document.getElementById("saf_talhoes_box");
+    if(!holder) return;
+    if(!fazId){
+      holder.innerHTML = '<div style="color:#9ca3af;font-style:italic;padding:8px">Selecione uma fazenda para ver os talhões disponíveis.</div>';
+      return;
+    }
+    var disponiveis = _talhoes.filter(function(t){
+      if(t.fazenda_id !== fazId) return false;
+      if(t.safra_id === null) return true;
+      if(safraIdEditando && t.safra_id === safraIdEditando) return true;
+      return false;
+    });
+    if(disponiveis.length === 0){
+      holder.innerHTML = '<div style="color:#9ca3af;font-style:italic;padding:8px">Nenhum talhão livre nessa fazenda. Cadastre talhões no menu Talhões ou desvincule de outras safras.</div>';
+      return;
+    }
+    var html = disponiveis.map(function(t){
+      var jaVinculado = (safraIdEditando && t.safra_id === safraIdEditando);
+      return '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;cursor:pointer;font-size:13px">'+
+        '<input type="checkbox" name="saf_talhao" value="'+t.id+'" data-area="'+(t.area_ha||0)+'" '+(jaVinculado?'checked':'')+' onchange="window._safRecalcArea()" style="width:16px;height:16px;cursor:pointer">'+
+        '<span style="flex:1"><b>'+esc(t.nome)+'</b> <span style="color:#6b7280">— '+fmtN(t.area_ha,0)+' ha</span></span>'+
+      '</label>';
+    }).join("");
+    holder.innerHTML = html;
+  }
   
   function abrirForm(s){
     var isNovo = !s;
@@ -202,10 +235,16 @@ window.module_safras = async function(){
       return '<option value="'+c+'"'+(s&&s.cultura===c?' selected':'')+'>'+c+'</option>';
     }).join("");
     
+    var safraIdEdit = s ? s.id : null;
+    var onChangeFaz = 'window._safOnChangeFazenda('+(safraIdEdit?'\''+safraIdEdit+'\'':'null')+')';
+    
     var html = ''+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">'+
         campo("Nome da Safra *","saf_nome","text", s?s.nome:"", "ex: Safra Soja 2025/26")+
-        campoSelect("Fazenda *","saf_fazenda", fazOpts)+
+        '<div>'+
+          '<label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Fazenda *</label>'+
+          '<select id="saf_fazenda" onchange="'+onChangeFaz+'" style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;background:#fff;box-sizing:border-box">'+fazOpts+'</select>'+
+        '</div>'+
         campoSelect("Cultura *","saf_cultura", cultOpts)+
         campo("Ano Agrícola","saf_ano","text", s?s.ano_agricola:"", "ex: 2025/26")+
         campoSelect("Status *","saf_status",
@@ -213,13 +252,23 @@ window.module_safras = async function(){
           '<option value="aberta"'+(!s||s.status==="aberta"?' selected':'')+'>Em Andamento</option>'+
           '<option value="encerrada"'+(s&&s.status==="encerrada"?' selected':'')+'>Encerrada</option>'
         )+
-        campo("Area (ha)","saf_area","number", s?s.area_ha:"", "0", "0.01")+
+        '<div>'+
+          '<label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Area (ha) <span id="saf_area_info" style="color:#16a34a;font-weight:500;font-size:11px;margin-left:6px"></span></label>'+
+          '<input id="saf_area" type="number" step="0.01" value="'+(s?s.area_ha:"")+'" placeholder="0" style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box">'+
+        '</div>'+
         campo("Data de Plantio","saf_plantio","date", s?s.data_plantio:"")+
         campo("Data de Colheita","saf_colheita","date", s?s.data_colheita:"")+
       '</div>'+
+      '<div style="margin-top:18px;padding:14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px">'+
+        '<label style="font-size:13px;font-weight:700;color:#111;display:block;margin-bottom:8px">🌾 Talhões da Safra</label>'+
+        '<div style="font-size:11px;color:#6b7280;margin-bottom:10px">Selecione os talhões que fazem parte desta safra. A área será calculada automaticamente.</div>'+
+        '<div id="saf_talhoes_box" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;max-height:220px;overflow-y:auto">'+
+          '<div style="color:#9ca3af;font-style:italic;padding:8px">Selecione uma fazenda para ver os talhões disponíveis.</div>'+
+        '</div>'+
+      '</div>'+
       '<div style="margin-top:12px">'+
         '<label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Observações</label>'+
-        '<textarea id="saf_obs" rows="3" style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;resize:vertical">'+esc(s?s.observacoes:"")+'</textarea>'+
+        '<textarea id="saf_obs" rows="3" style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;resize:vertical;box-sizing:border-box">'+esc(s?s.observacoes:"")+'</textarea>'+
       '</div>';
     
     showModal(isNovo ? "+ Nova Safra" : "Editar Safra", html, async function(){
@@ -232,6 +281,7 @@ window.module_safras = async function(){
       var plantio = document.getElementById("saf_plantio").value || null;
       var colheita = document.getElementById("saf_colheita").value || null;
       var obs = document.getElementById("saf_obs").value.trim() || null;
+      var talhoesSel = Array.from(document.querySelectorAll('input[name="saf_talhao"]:checked')).map(function(c){return c.value;});
       
       if(!nome){ toast("Informe o nome da safra","bad"); return false; }
       if(!fazId){ toast("Selecione a fazenda","bad"); return false; }
@@ -244,14 +294,29 @@ window.module_safras = async function(){
       };
       
       try{
-        var r;
+        var safraId;
         if(isNovo){
-          r = await sb.from("safras").insert([payload]).select();
+          var r = await sb.from("safras").insert([payload]).select();
+          if(r.error) throw r.error;
+          safraId = r.data[0].id;
         } else {
-          r = await sb.from("safras").update(payload).eq("id", s.id).select();
+          var r2 = await sb.from("safras").update(payload).eq("id", s.id).select();
+          if(r2.error) throw r2.error;
+          safraId = s.id;
         }
-        if(r.error) throw r.error;
-        toast(isNovo ? "Safra criada" : "Safra atualizada", "ok");
+        
+        if(!isNovo){
+          var atuaisDessaSafra = _talhoes.filter(function(t){return t.safra_id===s.id;}).map(function(t){return t.id;});
+          var paraDesvincular = atuaisDessaSafra.filter(function(id){return talhoesSel.indexOf(id)===-1;});
+          if(paraDesvincular.length > 0){
+            await sb.from("talhoes").update({safra_id: null}).in("id", paraDesvincular);
+          }
+        }
+        if(talhoesSel.length > 0){
+          await sb.from("talhoes").update({safra_id: safraId}).in("id", talhoesSel);
+        }
+        
+        toast(isNovo ? "Safra criada com "+talhoesSel.length+" talhão(s)" : "Safra atualizada", "ok");
         await carregar(); render();
         return true;
       }catch(e){
@@ -260,6 +325,14 @@ window.module_safras = async function(){
         return false;
       }
     });
+    
+    setTimeout(function(){
+      var fazSel = document.getElementById("saf_fazenda");
+      if(fazSel && fazSel.value){
+        renderTalhoesPicker(fazSel.value, safraIdEdit);
+        if(!isNovo) window._safRecalcArea();
+      }
+    }, 100);
   }
   
   function campo(label, id, type, val, placeholder, step){
