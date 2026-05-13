@@ -294,9 +294,9 @@ window.module_fechamento_safra = async function(){
     html += '</div>';
 
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:18px;">';
-    html += '<div style="background:#fff;padding:16px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.05);"><h4 style="margin:0 0 10px;color:#333;">&#128200; Composicao de Custos</h4><canvas id="fsChartCustos" height="220"></canvas></div>';
-    html += '<div style="background:#fff;padding:16px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.05);"><h4 style="margin:0 0 10px;color:#333;">&#127806; Receita por Cultura</h4><canvas id="fsChartCulturas" height="220"></canvas></div>';
-    html += '<div style="background:#fff;padding:16px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.05);"><h4 style="margin:0 0 10px;color:#333;">&#128202; Margem por Fechamento</h4><canvas id="fsChartMargem" height="220"></canvas></div>';
+    html += '<div style="background:#fff;padding:16px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.05);"><h4 style="margin:0 0 10px;color:#333;">&#128200; Composicao de Custos</h4><div style="position:relative;height:240px;width:100%;"><canvas id="fsChartCustos"></canvas></div></div>';
+    html += '<div style="background:#fff;padding:16px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.05);"><h4 style="margin:0 0 10px;color:#333;">&#127806; Receita por Cultura</h4><div style="position:relative;height:240px;width:100%;"><canvas id="fsChartCulturas"></canvas></div></div>';
+    html += '<div style="background:#fff;padding:16px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.05);"><h4 style="margin:0 0 10px;color:#333;">&#128202; Margem por Fechamento</h4><div style="position:relative;height:240px;width:100%;"><canvas id="fsChartMargem"></canvas></div></div>';
     html += '</div>';
 
     if(melhor && pior && melhor!==pior){
@@ -492,7 +492,7 @@ window.module_fechamento_safra = async function(){
     html += '<div style="background:#fafafa;padding:16px;border-radius:10px;margin-bottom:16px;">';
     html += '<h3 style="margin:0 0 12px;color:#333;font-size:16px;">&#128202; Composicao dos Custos</h3>';
     html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">';
-    html += '<div><canvas id="fsModalChart" height="200"></canvas></div>';
+    html += '<div><div style="position:relative;height:220px;width:100%;"><canvas id="fsModalChart"></canvas></div></div>';
     html += '<div>';
     [
       {l:"Insumos",v:f.custo_insumos,p:pInsum,c:"#1e7e34"},
