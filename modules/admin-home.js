@@ -6,7 +6,7 @@ window.module_home = async function() {
   // Helper functions
   function fmtBrl(n) { return "R$ " + parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
   function fmtSc(n) { return parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1}); }
-  function fmtPct(n) { return parseFloat(n||0).toFixed(1) + "%"; }
+  function fmtPct(n) { return parseFloat(n||0).toFixed(1)h + "%"; }
   function fmtDate(d) { if(!d) return ""; var p=d.split("-"); return p[2]+"/"+p[1]+"/"+p[0]; }
   function navTo(mod) { var el=document.querySelector("[data-module=\""+mod+"\"]"); if(el) el.click(); }
 
@@ -21,7 +21,7 @@ window.module_home = async function() {
     sb.from("fazendas").select("id,nome,cidade,estado,area_total_ha,certificada").eq("ativo",true).order("nome"),
     sb.from("usuarios").select("id").eq("ativo",true),
     sb.from("talhoes").select("id,nome,area_ha,fazenda_id").eq("ativo",true),
-    sb.from("safras").select("id,nome,cultura,ano_agricola,status,fazenda_id,produção_sc,produtividade_sc_ha,custo_total,receita_total").order("criado_em",{ascending:false}),
+    sb.from("safras").select("id,nome,cultura,ano_agricola,status,fazenda_id,producao_sc,produtividade_sc_ha,custo_total,receita_total").order("criado_em",{ascending:false}),
     sb.from("lancamentos").select("id,tipo,custo_total,data_lancamento,descricao,status").eq("status","confirmado").order("data_lancamento",{ascending:false}).limit(8),
     sb.from("insumos").select("id,nome,estoque_atual,estoque_minimo").eq("ativo",true),
     sb.from("fechamento_safra").select("*,safras(nome,cultura,ano_agricola),fazendas(nome)").order("criado_em",{ascending:false}).limit(5),
