@@ -23,7 +23,7 @@ window["module_ia-operacional"] = async function(){
     qSaf = qSaf.eq("fazenda_id",fazFiltro);
     qFech = qFech.eq("fazenda_id",fazFiltro);
     qVen = qVen.eq("fazenda_id",fazFiltro);
-    qIns = qIns.eq("fazenda_id",fazFiltro);
+    /* insumos são globais - não filtrar por fazenda */
     qTal = qTal.eq("fazenda_id",fazFiltro);
   }
 
