@@ -21,7 +21,7 @@ window.module_alertas = async function(){
   let qFaz = sb.from("fazendas").select("id,nome").eq("ativo",true);
 
   if(fazFiltro){
-    qIns = qIns.eq("fazenda_id", fazFiltro);
+    /* insumos são globais - não filtrar por fazenda */
     qMaq = qMaq.eq("fazenda_id", fazFiltro);
     qSaf = qSaf.eq("fazenda_id", fazFiltro);
     qFech = qFech.eq("fazenda_id", fazFiltro);
