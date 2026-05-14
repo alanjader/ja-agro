@@ -6,7 +6,7 @@ window.module_home = async function() {
   // Helper functions
   function fmtBrl(n) { return "R$ " + parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
   function fmtSc(n) { return parseFloat(n||0).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1}); }
-  function fmtPct(n) { return parseFloat(n||0).toFixed(1)h + "%"; }
+  function fmtPct(n) { return parseFloat(n||0).toFixed(1) + "%"; }
   function fmtDate(d) { if(!d) return ""; var p=d.split("-"); return p[2]+"/"+p[1]+"/"+p[0]; }
   function navTo(mod) { var el=document.querySelector("[data-module=\""+mod+"\"]"); if(el) el.click(); }
 
