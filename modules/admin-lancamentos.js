@@ -420,7 +420,7 @@ window.module_lancamentos = async function() {
     // Auto-aplica tipo_cobranca da categoria inicial
     var catSel=document.getElementById("lanc_cat");
     if(catSel && catSel.value && typeof window._lanc_onCatChange==="function")
-      window._lanc_onCatChange(catSel.value);
+      window._lanc_onCatChange(catSel.value, !isNovo);
   }, 120);
   };
 
@@ -625,7 +625,7 @@ window.module_lancamentos = async function() {
   };
 
 
-  window._lanc_onCatChange = function(catId){
+  window._lanc_onCatChange = function(catId, skipClear){
     const cat = (window._lancCategorias||[]).find(c => c.id === catId);
     if(!cat) return;
     const tipoSel = document.getElementById("lanc_tipo");
@@ -660,10 +660,12 @@ window.module_lancamentos = async function() {
     } else {
       if(qw)  qw.style.display="block";
       if(uw)  uw.style.display="block";
-    // Limpar valores de custo ao trocar categoria
-    ['lanc_dias','lanc_custo_dia','lanc_horas','lanc_custo_hora','lanc_area_ha','lanc_custo_ha','lanc_qtd','lanc_custo'].forEach(function(id){
-      var el = document.getElementById(id); if(el) el.value = '';
-    });
+    // Limpar valores de custo ao trocar categoria (skip durante setup de edicao)
+    if(!skipClear){
+      ['lanc_dias','lanc_custo_dia','lanc_horas','lanc_custo_hora','lanc_area_ha','lanc_custo_ha','lanc_qtd','lanc_custo'].forEach(function(id){
+        var el = document.getElementById(id); if(el) el.value = '';
+      });
+    }
     }
     // Atualiza insumos filtrados pela categoria
     var _insSel3 = document.getElementById('lanc_insumo');
