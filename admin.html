@@ -874,6 +874,9 @@ window.loadModule = function(name, el) {
   const _t = _titulos[name] || [name, ''];
   const _titleEl = document.getElementById('topbarTitle');
   if (_titleEl) _titleEl.innerHTML = _t[0] + ' <span id="topbarSub">' + _t[1] + '</span>';
+  // Reset topbar actions when navigating to a new module (fix bug #21)
+  const _actEl = document.getElementById('topbarActions');
+  if (_actEl) _actEl.innerHTML = '';
 
   // Fecha sidebar no mobile
   if(window.innerWidth <= 900) toggleSidebar(false);
