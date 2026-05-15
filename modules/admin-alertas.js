@@ -50,7 +50,8 @@ window.module_alertas = async function(){
         titulo: i.estoque_atual<=0 ? "Insumo zerado: "+i.nome : "Insumo abaixo do mínimo: "+i.nome,
         descricao: "Estoque atual: "+fmt(i.estoque_atual)+" "+(i.unidade||"")+" · Mínimo: "+fmt(i.estoque_minimo)+" "+(i.unidade||""),
         fazenda: fazMap[i.fazenda_id]||"-",
-        modulo: "insumos"
+        modulo: "insumos",
+        targetId: i.id
       });
     }
   });
@@ -151,7 +152,7 @@ window.module_alertas = async function(){
       '<div style="font-size:12.5px;color:#4b5563;line-height:1.5">'+esc(a.descricao)+'</div>'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;padding-top:8px;border-top:1px solid #f3f4f6">'+
         '<span style="font-size:11px;color:#6b7280">🏡 '+esc(a.fazenda)+'</span>'+
-        '<a href="javascript:void(0)" onclick="loadModule(\''+a.modulo+'\',document.querySelector(\'[data-module=\\\''+a.modulo+'\\\']\'))" style="font-size:11px;color:#16a34a;font-weight:700;text-decoration:none">Resolver →</a>'+
+        '<a href="javascript:void(0)" onclick="if('+JSON.stringify(a.targetId||null)+'){try{sessionStorage.setItem(\'alertaTarget_\'+'+JSON.stringify(a.modulo)+','+JSON.stringify(a.targetId)+');}catch(e){}}loadModule(\''+a.modulo+'\',document.querySelector(\'[data-module=\\\''+a.modulo+'\\\']\'))" style="font-size:11px;color:#16a34a;font-weight:700;text-decoration:none">Resolver →</a>'+
       '</div></div>'
     )).join("");
   }
@@ -160,7 +161,7 @@ window.module_alertas = async function(){
     '<div style="padding:24px;max-width:1280px">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">'+
       '<div><h2 style="margin:0;color:var(--txt)">🔔 Central de Alertas</h2>'+
-      '<p style="margin:4px 0 0;color:var(--txt-s);font-size:14px">Pendências operacionais consolidadas'+(fazFiltro?' · Filtrado por '+(fazMap[fazFiltro]||""):"")+'</p></div>'+
+      '<p style="margin:4px 0 0;color:var(--txt-s);font-size:14px">Pendências operacionais consolidadas'+(fazFiltro?' · Filtrado por '+(fazMap[fazFiltro]||"")+' <span style=\"color:#888;font-size:12px\">(estoque é global)</span>':"")+'</p></div>'+
       '<button class="topbar-btn btn-ghost" onclick="loadModule(\'alertas\',document.querySelector(\'[data-module=alertas]\'))" style="padding:8px 14px">🔄 Atualizar</button>'+
     '</div>'+
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px">'+
