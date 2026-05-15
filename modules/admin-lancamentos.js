@@ -412,6 +412,10 @@ window.module_lancamentos = async function() {
       }
     );
     setTimeout(function(){
+    ["lanc_qtd","lanc_custo","lanc_horas","lanc_area_ha","lanc_dias","lanc_custo_hora","lanc_custo_ha","lanc_custo_dia"].forEach(function(_id){
+      var _el = document.getElementById(_id);
+      if(_el && _el.getAttribute("value") && !_el.value){ _el.value = _el.getAttribute("value"); }
+    });
     var e=document.getElementById("lanc_desc"); if(e) e.focus();
     // Auto-aplica tipo_cobranca da categoria inicial
     var catSel=document.getElementById("lanc_cat");
