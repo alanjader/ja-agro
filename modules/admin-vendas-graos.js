@@ -87,20 +87,20 @@ window.module_vendas_graos = async function() {
   html += "<div style=\"display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px\">";
   html += "<div style=\"background:#fff;border-radius:12px;padding:16px;border-left:4px solid #2d7d32;box-shadow:0 1px 4px rgba(0,0,0,0.08)\">";
   html += "<div style=\"font-size:11px;text-transform:uppercase;color:#888;letter-spacing:0.5px\">Contratado</div>";
-  html += "<div style=\"font-size:24px;font-weight:700;color:#2d7d32;margin:4px 0\">" + fmtSc(totalContratado) + " sc</div>";
-  html += "<div style=\"font-size:11px;color:#888\">" + vendas.length + " contrato(s)</div></div>";
+  html += "<div id=\"vgKpiContratadoBox\" style=\"font-size:24px;font-weight:700;color:#2d7d32;margin:4px 0\">" + fmtSc(totalContratado) + " sc</div>";
+  html += "<div id=\"vgKpiContratosBox\" style=\"font-size:11px;color:#888\">" + vendas.length + " contrato(s)</div></div>";
   html += "<div style=\"background:#fff;border-radius:12px;padding:16px;border-left:4px solid #1565c0;box-shadow:0 1px 4px rgba(0,0,0,0.08)\">";
   html += "<div style=\"font-size:11px;text-transform:uppercase;color:#888;letter-spacing:0.5px\">Entregue</div>";
-  html += "<div style=\"font-size:24px;font-weight:700;color:#1565c0;margin:4px 0\">" + fmtSc(totalEntregue) + " sc</div>";
-  html += "<div style=\"font-size:11px;color:#888\">" + entregas.length + " entrega(s)</div></div>";
+  html += "<div id=\"vgKpiEntregueBox\" style=\"font-size:24px;font-weight:700;color:#1565c0;margin:4px 0\">" + fmtSc(totalEntregue) + " sc</div>";
+  html += "<div id=\"vgKpiEntregasBox\" style=\"font-size:11px;color:#888\">" + entregas.length + " entrega(s)</div></div>";
   html += "<div style=\"background:#fff;border-radius:12px;padding:16px;border-left:4px solid #e65100;box-shadow:0 1px 4px rgba(0,0,0,0.08)\">";
   html += "<div style=\"font-size:11px;text-transform:uppercase;color:#888;letter-spacing:0.5px\">Saldo a Entregar</div>";
-  html += "<div style=\"font-size:24px;font-weight:700;color:#e65100;margin:4px 0\">" + fmtSc(saldoEntregar) + " sc</div>";
-  html += "<div style=\"font-size:11px;color:#888\">" + (totalContratado>0?Math.round((totalEntregue/totalContratado)*100):0) + "% entregue</div></div>";
+  html += "<div id=\"vgKpiSaldoBox\" style=\"font-size:24px;font-weight:700;color:#e65100;margin:4px 0\">" + fmtSc(saldoEntregar) + " sc</div>";
+  html += "<div id=\"vgKpiPercBox\" style=\"font-size:11px;color:#888\">" + (totalContratado>0?Math.round((totalEntregue/totalContratado)*100):0) + "% entregue</div></div>";
   html += "<div style=\"background:#fff;border-radius:12px;padding:16px;border-left:4px solid #7b1fa2;box-shadow:0 1px 4px rgba(0,0,0,0.08)\">";
   html += "<div style=\"font-size:11px;text-transform:uppercase;color:#888;letter-spacing:0.5px\">Receita Total</div>";
-  html += "<div style=\"font-size:24px;font-weight:700;color:#7b1fa2;margin:4px 0\">" + fmtBrl(totalReceita) + "</div>";
-  html += "<div style=\"font-size:11px;color:#888\">Pm: " + fmtBrl(precoMedio) + "/sc</div></div>";
+  html += "<div id=\"vgKpiReceitaBox\" style=\"font-size:24px;font-weight:700;color:#7b1fa2;margin:4px 0\">" + fmtBrl(totalReceita) + "</div>";
+  html += "<div id=\"vgKpiPmBox\" style=\"font-size:11px;color:#888\">Pm: " + fmtBrl(precoMedio) + "/sc</div></div>";
   html += "</div>";
 
   // ---- FORMULÁRIO NOVO CONTRATO ----
@@ -215,11 +215,33 @@ window.module_vendas_graos = async function() {
       return true;
     });
     window._vgRenderTabela(filtered);
+    if(window._vgRecalcKpis) window._vgRecalcKpis(filtered);
+  };
+  window._vgRecalcKpis = function(vendasF){
+    var fmtSc = window._vgFmtSc, fmtBrl = window._vgFmtBrl;
+    var ids = (vendasF||[]).map(function(v){return v.id;});
+    var entregasF = (window._vgAllEntregas||[]).filter(function(e){ return ids.indexOf(e.venda_id)>=0; });
+    var totalContratado = vendasF.reduce(function(a,v){return a + parseFloat(v.quantidade_sc||0);},0);
+    var totalEntregue = entregasF.reduce(function(a,e){return a + parseFloat(e.quantidade_sc||0);},0);
+    var totalReceita = vendasF.reduce(function(a,v){return a + (parseFloat(v.quantidade_sc||0)*parseFloat(v.preco_saca||0));},0);
+    var precoMedio = totalContratado>0 ? (totalReceita/totalContratado) : 0;
+    var saldoEntregar = totalContratado - totalEntregue;
+    var perc = totalContratado>0 ? Math.round((totalEntregue/totalContratado)*100) : 0;
+    var set = function(id, txt){ var e=document.getElementById(id); if(e) e.textContent=txt; };
+    set("vgKpiContratadoBox", fmtSc(totalContratado)+" sc");
+    set("vgKpiContratosBox", vendasF.length+" contrato(s)");
+    set("vgKpiEntregueBox", fmtSc(totalEntregue)+" sc");
+    set("vgKpiEntregasBox", entregasF.length+" entrega(s)");
+    set("vgKpiSaldoBox", fmtSc(saldoEntregar)+" sc");
+    set("vgKpiPercBox", perc+"% entregue");
+    set("vgKpiReceitaBox", fmtBrl(totalReceita));
+    set("vgKpiPmBox", "Pm: "+fmtBrl(precoMedio)+"/sc");
   };
 
   window._vgLimparFiltros = function() {
     ["fFaz","fSaf","fSts","fComp"].forEach(function(id){ var e=document.getElementById(id); if(e) e.value=""; });
     window._vgRenderTabela(window._vgAllVendas||[]);
+    if(window._vgRecalcKpis) window._vgRecalcKpis(window._vgAllVendas||[]);
   };
 
   // ---- CHECKLIST EXPORTACAO ----
