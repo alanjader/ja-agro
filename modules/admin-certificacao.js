@@ -1,7 +1,7 @@
  // admin-certificação.js - Módulo de Certificação de Fazenda
 // JA Agro Intelligence v1.0
 
-const AdminCertificação = (() => {
+var AdminCertificação = AdminCertificação || (() => {
 
   const CHECKLISTS = {
     organico: {
@@ -493,3 +493,4 @@ const AdminCertificação = (() => {
 })();
 
 window.AdminCertificação = AdminCertificação;
+window.AdminCertificacao = AdminCertificação;
