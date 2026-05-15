@@ -183,7 +183,18 @@ window.module_lancamentos = async function() {
     const catAtual  = l ? l.categoria_id : "";
     const temMaq = !!(l && l.maquina_id);
     const horasVal = (temMaq && l.unidade==="h") ? (l.quantidade||"") : "";
-    const maqDisplay = temMaq ? "block" : "none";
+    const usaHA  = !!(l && l.unidade==="ha");
+    const usaDia = !!(l && l.unidade==="d");
+    const areaHaVal = usaHA ? (l.quantidade||"") : "";
+    const diasVal   = usaDia ? (l.quantidade||"") : "";
+    const qtdSemMaqVal = (l && !l.maquina_id && !usaHA && !usaDia) ? (l.quantidade||"") : "";
+    const custoHoraVal = (temMaq && l.unidade==="h") ? (l.custo_unitario||"") : "";
+    const custoHaVal   = usaHA  ? (l.custo_unitario||"") : "";
+    const custoDiaVal  = usaDia ? (l.custo_unitario||"") : "";
+    const maqDisplay = (temMaq && !usaHA && !usaDia) ? "block" : "none";
+    const haDisplay  = usaHA  ? "block" : "none";
+    const diaDisplay = usaDia ? "block" : "none";
+    const qtdGenDisplay = (temMaq || usaHA || usaDia) ? "none" : "block";
     const fazAtual = l ? l.fazenda_id : "";
 
     // Build option lists - filter by fazenda if editing
@@ -247,20 +258,20 @@ window.module_lancamentos = async function() {
       "<div><label style=\"color:#92400e;font-weight:600\">\u23F1\uFE0F Horas Trabalhadas *</label>"+
       "<input id=\"lanc_horas\" type=\"number\" step=\"0.5\" min=\"0\" placeholder=\"Ex: 4.5\" value=\""+horasVal+"\" oninput=\"window._lanc_calcCustoMaq()\"/></div>"+
       "<div><label style=\"color:#92400e;font-weight:600\">R$/Hora (custo da m\u00E1quina)</label>"+
-      "<input id=\"lanc_custo_hora\" type=\"number\" step=\"0.01\" min=\"0\" placeholder=\"Ex: 180.00\" oninput=\"window._lanc_calcCustoMaq()\"/>"+
+      "<input id=\"lanc_custo_hora\" type=\"number\" step=\"0.01\" min=\"0\" placeholder=\"Ex: 180.00\" value=\""+custoHoraVal+"\" oninput=\"window._lanc_calcCustoMaq()\"/>"+
       "<small style=\"color:#92400e;font-size:11px\">Preencha para calcular custo total automaticamente</small></div>"+
       "</div></div>"+
       // AREA (HA) - shown for por_ha billing (arrendamento, servico por ha)
-      "<div class=\"form-field\" id=\"lanc_ha_wrap\" style=\"display:none;grid-column:span 2;background:#f0fdf4;border:1px solid #22c55e;border-radius:8px;padding:12px;margin-bottom:4px\">"+
+      "<div class=\"form-field\" id=\"lanc_ha_wrap\" style=\"display:"+haDisplay+";grid-column:span 2;background:#f0fdf4;border:1px solid #22c55e;border-radius:8px;padding:12px;margin-bottom:4px\">"+
       "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px\">"+
       "<div><label style=\"color:#166534;font-weight:600\">🌾 Área (ha) *</label>"+
-      "<input id=\"lanc_area_ha\" type=\"number\" step=\"0.1\" min=\"0\" placeholder=\"Ex: 120\" value=\"\" oninput=\"window._lanc_calcCustoHA()\"/></div>"+
+      "<input id=\"lanc_area_ha\" type=\"number\" step=\"0.1\" min=\"0\" placeholder=\"Ex: 120\" value=\""+areaHaVal+"\" oninput=\"window._lanc_calcCustoHA()\"/></div>"+
       "<div><label style=\"color:#166534;font-weight:600\">R$/ha (custo por hectare)</label>"+
-      "<input id=\"lanc_custo_ha\" type=\"number\" step=\"0.01\" min=\"0\" placeholder=\"Ex: 350.00\" oninput=\"window._lanc_calcCustoHA()\"/>"+
+      "<input id=\"lanc_custo_ha\" type=\"number\" step=\"0.01\" min=\"0\" placeholder=\"Ex: 350.00\" value=\""+custoHaVal+"\" oninput=\"window._lanc_calcCustoHA()\"/>"+
       "<small style=\"color:#166534;font-size:11px\">Preencha para calcular custo total automaticamente</small></div>"+
       "</div></div>"+
       // DIAS - shown for por_dia billing (mao de obra, servico diario)
-      "<div class=\"form-field\" id=\"lanc_dias_wrap\" style=\"display:none;grid-column:span 2;background:#faf5ff;border:1px solid #a855f7;border-radius:8px;padding:12px;margin-bottom:4px\">"+
+      "<div class=\"form-field\" id=\"lanc_dias_wrap\" style=\"display:"+diaDisplay+";grid-column:span 2;background:#faf5ff;border:1px solid #a855f7;border-radius:8px;padding:12px;margin-bottom:4px\">"+
             "<div style=\"grid-column:span 2;margin-bottom:8px\">"+
       "<label style=\"color:#6b21a8;font-weight:600\">Tipo de Serviço *</label>"+
       "<select id=\"lanc_tipo_servico\" style=\"width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;margin-top:4px\">"+
@@ -283,15 +294,15 @@ window.module_lancamentos = async function() {
       "</select></div>"+
 "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px\">"+
       "<div><label style=\"color:#6b21a8;font-weight:600\">📅 Dias Trabalhados *</label>"+
-      "<input id=\"lanc_dias\" type=\"number\" step=\"1\" min=\"0\" placeholder=\"Ex: 15\" value=\"\" oninput=\"window._lanc_calcCustoDia()\"/></div>"+
+      "<input id=\"lanc_dias\" type=\"number\" step=\"1\" min=\"0\" placeholder=\"Ex: 15\" value=\""+diasVal+"\" oninput=\"window._lanc_calcCustoDia()\"/></div>"+
       "<div><label style=\"color:#6b21a8;font-weight:600\">R$/Dia (custo por dia)</label>"+
-      "<input id=\"lanc_custo_dia\" type=\"number\" step=\"0.01\" min=\"0\" placeholder=\"Ex: 280.00\" oninput=\"window._lanc_calcCustoDia()\"/>"+
+      "<input id=\"lanc_custo_dia\" type=\"number\" step=\"0.01\" min=\"0\" placeholder=\"Ex: 280.00\" value=\""+custoDiaVal+"\" oninput=\"window._lanc_calcCustoDia()\"/>"+
       "<small style=\"color:#6b21a8;font-size:11px\">Preencha para calcular custo total automaticamente</small></div>"+
       "</div></div>"+
       // Quantidade + Unidade (hidden when machine selected, uses horas instead)
-      "<div class=\"form-field\" id=\"lanc_qtd_wrap\" style=\"display:"+(temMaq?"none":"block")+"\"><label>Quantidade</label>"+
-      "<input id=\"lanc_qtd\" type=\"number\" step=\"0.01\" min=\"0\" value=\""+((l&&!l.maquina_id&&l.quantidade)||"")+"\" oninput='window._lanc_calcCustoUnidade()'/></div>"+
-      "<div class=\"form-field\" id=\"lanc_unid_wrap\" style=\"display:"+(temMaq?"none":"block")+"\"><label>Unidade</label>"+
+      "<div class=\"form-field\" id=\"lanc_qtd_wrap\" style=\"display:"+qtdGenDisplay+"\"><label>Quantidade</label>"+
+      "<input id=\"lanc_qtd\" type=\"number\" step=\"0.01\" min=\"0\" value=\""+qtdSemMaqVal+"\" oninput='window._lanc_calcCustoUnidade()'/></div>"+
+      "<div class=\"form-field\" id=\"lanc_unid_wrap\" style=\"display:"+qtdGenDisplay+"\"><label>Unidade</label>"+
       "<select id=\"lanc_unid\"><option value=\"\">Selecione...</option>"+unidOpts+"</select></div>"+
       "<div class=\"form-field\"><label>Custo Total (R$) *</label>"+
       "<input id=\"lanc_custo\" type=\"number\" step=\"0.01\" min=\"0\" value=\""+((l&&l.custo_total)||"")+"\"/></div>"+
