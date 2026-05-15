@@ -152,7 +152,7 @@ window.module_alertas = async function(){
       '<div style="font-size:12.5px;color:#4b5563;line-height:1.5">'+esc(a.descricao)+'</div>'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;padding-top:8px;border-top:1px solid #f3f4f6">'+
         '<span style="font-size:11px;color:#6b7280">🏡 '+esc(a.fazenda)+'</span>'+
-        '<a href="javascript:void(0)" onclick="if('+JSON.stringify(a.targetId||null)+'){try{sessionStorage.setItem(\'alertaTarget_\'+'+JSON.stringify(a.modulo)+','+JSON.stringify(a.targetId)+');}catch(e){}}loadModule(\''+a.modulo+'\',document.querySelector(\'[data-module=\\\''+a.modulo+'\\\']\'))" style="font-size:11px;color:#16a34a;font-weight:700;text-decoration:none">Resolver →</a>'+
+        '<a href="javascript:void(0)" class="alerta-resolver" data-alerta-modulo="'+esc(a.modulo)+'" data-alerta-target="'+esc(a.targetId||'')+'" style="font-size:11px;color:#16a34a;font-weight:700;text-decoration:none">Resolver →</a>'+
       '</div></div>'
     )).join("");
   }
@@ -172,4 +172,19 @@ window.module_alertas = async function(){
     '</div>'+
     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">'+cardsHtml+'</div>'+
     '</div>';
+
+
+  // Event delegation for Resolver links (fix do bug de aspas no onclick inline)
+  el.addEventListener('click', function(ev){
+    const a = ev.target.closest('.alerta-resolver');
+    if(!a) return;
+    ev.preventDefault();
+    const modulo = a.getAttribute('data-alerta-modulo');
+    const targetId = a.getAttribute('data-alerta-target');
+    if(targetId){
+      try { sessionStorage.setItem('alertaTarget_' + modulo, targetId); } catch(e){}
+    }
+    const navEl = document.querySelector('[data-module="' + modulo + '"]');
+    if(typeof loadModule === 'function'){ loadModule(modulo, navEl); }
+  });
 };
