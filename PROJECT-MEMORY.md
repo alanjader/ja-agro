@@ -197,6 +197,39 @@ Total acumulado no projeto: **34+ commits**.
 
 ---
 
+## 8. Módulo COOPERATIVA (em especificação)
+
+Spec completa em [docs/cooperativa/](./docs/cooperativa/) (11 arquivos, 00 a 10).
+
+**Decisões arquiteturais ja tomadas:**
+- Repositório separado: `ja-agrotec-cooperativa` (a criar).
+- Projeto Supabase dedicado.
+- Federação com Produtor via **SSO unificado JWT + Foreign Data Wrappers + Outbox pattern**.
+- AI Agents como cidadãos de primeira classe (7 agentes catalogados).
+- Stack 2026: PostgreSQL 16 + pgvector + PostGIS + Edge Functions + CRDT offline + MapLibre + pgmq + Claude Sonnet 4.5.
+- Rastreabilidade: hash chain interna obrigatória + blockchain anchoring opcional (Polygon/OpenTimestamps).
+- LGPD-by-design com consentimento granular (16 flags).
+
+**Estrutura da spec:**
+
+| # | Arquivo | Foco |
+|---|---|---|
+| 00 | README | Índice e diferenciais |
+| 01 | visao-arquitetura | C4, modelo dual cooperado, princípios |
+| 02 | stack-tecnologica | Tech stack 2026 completa |
+| 03 | modelo-dados | Schema SQL 30+ tabelas, RLS, triggers |
+| 04 | federacao-sso | SSO + FDW + Outbox events |
+| 05 | ia-ativa-agentes | 7 agentes, tools, embeddings, RAG |
+| 06 | dashboards-semaforos | Dashboard executivo, 11 semáforos, geo |
+| 07 | modulos-funcionais | Sidebar completo + fluxos |
+| 08 | rastreabilidade-blockchain | Hash chain + Merkle + dossiê verificável |
+| 09 | ux-design | Padrões UX, command palette, mobile |
+| 10 | roadmap-mvp | 4 fases, MVP 90 dias, métricas |
+
+**Próximo passo**: Alan criar o repo `ja-agrotec-cooperativa` e projeto Supabase dedicado.
+
+---
+
 ---
 
 _Atualizado em 18/05/2026 após a sessão de rebrand. Próxima sessão deve começar lendo este arquivo._
