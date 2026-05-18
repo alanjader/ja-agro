@@ -2,7 +2,7 @@
 // JA AGROTEC · Modulo Produtor — Changelog
 // admin-sobre-changelog.js
 // ============================================================
-window.module_sobre_changelog = function() {
+window['module_sobre-changelog'] = function() {
   const mc = document.getElementById('mainContent');
   if (!mc) return;
   mc.innerHTML =
