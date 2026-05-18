@@ -2,7 +2,7 @@
 // JA AGROTEC · Modulo Produtor — História
 // admin-sobre-historia.js
 // ============================================================
-window.module_sobre_historia = function() {
+window['module_sobre-historia'] = function() {
   const mc = document.getElementById('mainContent');
   if (!mc) return;
   mc.innerHTML =
